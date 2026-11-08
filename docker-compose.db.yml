@@ -1,0 +1,22 @@
+# Local database for development and tests only.
+# The full stack compose file (api, worker, web, redis, minio) arrives in M0/Phase 3.
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: bb-postgres-dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bb_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-balloonsbuzz}
+    ports:
+      - "127.0.0.1:55432:5432"   # non-default port so it never clashes with another local Postgres
+    volumes:
+      - bb_pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  bb_pgdata_dev:

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS followups;
+DROP TABLE IF EXISTS automations;

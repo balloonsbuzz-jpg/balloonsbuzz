@@ -1,0 +1,29 @@
+{
+  "name": "balloonsbuzz-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BalloonsBuzz WhatsApp automation platform",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "migrate": "node db/migrate.js up",
+    "migrate:down": "node db/migrate.js down",
+    "migrate:status": "node db/migrate.js status",
+    "seed": "node db/migrate.js seed",
+    "db:reset": "node db/migrate.js reset",
+    "db:snapshot": "node db/snapshot.js",
+    "db:up": "docker compose -f docker-compose.db.yml up -d --wait",
+    "db:down": "docker compose -f docker-compose.db.yml down",
+    "test:db": "jest --runInBand db/tests"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 60000
+  }
+}
