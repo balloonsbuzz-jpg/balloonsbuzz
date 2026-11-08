@@ -123,7 +123,7 @@ CREATE TABLE public.ai_agent_config (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     tenant_id uuid NOT NULL,
     is_enabled boolean DEFAULT true NOT NULL,
-    provider text DEFAULT 'anthropic'::text NOT NULL,
+    provider text DEFAULT 'deepseek'::text NOT NULL,
     model text NOT NULL,
     system_prompt text NOT NULL,
     temperature numeric(3,2) DEFAULT 0.40 NOT NULL,
@@ -137,7 +137,6 @@ CREATE TABLE public.ai_agent_config (
     response_delay_max_ms integer DEFAULT 4000 NOT NULL,
     stuck_threshold integer DEFAULT 3 NOT NULL,
     handover_keywords jsonb DEFAULT '["human", "agent", "call me", "person", "manager"]'::jsonb NOT NULL,
-    tools_enabled jsonb DEFAULT '[]'::jsonb NOT NULL,
     handover_message text,
     out_of_hours_message text,
     settings jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -145,11 +144,18 @@ CREATE TABLE public.ai_agent_config (
     updated_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    base_url text,
+    api_key_enc text,
+    api_key_last4 text,
+    fallback_model text,
+    pricing_per_1m jsonb DEFAULT '{}'::jsonb NOT NULL,
+    CONSTRAINT ai_agent_config_base_url_check CHECK (((base_url IS NULL) OR (base_url ~ '^https?://'::text))),
     CONSTRAINT ai_agent_config_delay_check CHECK (((response_delay_min_ms >= 0) AND (response_delay_max_ms >= response_delay_min_ms))),
+    CONSTRAINT ai_agent_config_key_last4_check CHECK (((api_key_last4 IS NULL) OR (length(api_key_last4) <= 4))),
     CONSTRAINT ai_agent_config_keywords_check CHECK ((jsonb_typeof(handover_keywords) = 'array'::text)),
     CONSTRAINT ai_agent_config_limits_check CHECK (((max_output_tokens > 0) AND ((max_tool_iterations >= 1) AND (max_tool_iterations <= 20)) AND ((max_history_messages >= 1) AND (max_history_messages <= 200)) AND ((max_message_chars >= 50) AND (max_message_chars <= 4096)) AND ((max_messages_per_turn >= 1) AND (max_messages_per_turn <= 10)) AND (stuck_threshold >= 1) AND (summary_every_messages >= 1))),
-    CONSTRAINT ai_agent_config_temperature_check CHECK (((temperature >= (0)::numeric) AND (temperature <= (2)::numeric))),
-    CONSTRAINT ai_agent_config_tools_check CHECK ((jsonb_typeof(tools_enabled) = 'array'::text))
+    CONSTRAINT ai_agent_config_provider_check CHECK ((provider = ANY (ARRAY['deepseek'::text, 'openai'::text, 'anthropic'::text, 'gemini'::text, 'groq'::text, 'openrouter'::text, 'custom'::text]))),
+    CONSTRAINT ai_agent_config_temperature_check CHECK (((temperature >= (0)::numeric) AND (temperature <= (2)::numeric)))
 );
 
 --
@@ -211,6 +217,32 @@ CREATE TABLE public.ai_tool_calls (
     duration_ms integer,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT ai_tool_calls_tool_check CHECK ((tool_name ~ '^[a-z_]{2,64}$'::text))
+);
+
+--
+-- Name: ai_tools; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ai_tools (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    tenant_id uuid NOT NULL,
+    name text NOT NULL,
+    display_name text NOT NULL,
+    description text NOT NULL,
+    default_description text NOT NULL,
+    parameters jsonb DEFAULT '{"type": "object", "properties": {}}'::jsonb NOT NULL,
+    config jsonb DEFAULT '{}'::jsonb NOT NULL,
+    is_enabled boolean DEFAULT true NOT NULL,
+    is_required boolean DEFAULT false NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    updated_by uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT ai_tools_config_check CHECK ((jsonb_typeof(config) = 'object'::text)),
+    CONSTRAINT ai_tools_description_check CHECK (((length(btrim(description)) >= 10) AND (length(btrim(description)) <= 2000))),
+    CONSTRAINT ai_tools_name_check CHECK ((name ~ '^[a-z_]{2,64}$'::text)),
+    CONSTRAINT ai_tools_parameters_check CHECK ((jsonb_typeof(parameters) = 'object'::text)),
+    CONSTRAINT ai_tools_required_enabled_check CHECK ((is_enabled OR (NOT is_required)))
 );
 
 --
@@ -1238,6 +1270,13 @@ ALTER TABLE ONLY public.ai_tool_calls
     ADD CONSTRAINT ai_tool_calls_pkey PRIMARY KEY (id);
 
 --
+-- Name: ai_tools ai_tools_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_tools
+    ADD CONSTRAINT ai_tools_pkey PRIMARY KEY (id);
+
+--
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1518,6 +1557,13 @@ ALTER TABLE ONLY public.ai_agent_config_versions
     ADD CONSTRAINT uq_ai_agent_config_versions_config_version UNIQUE (ai_agent_config_id, version);
 
 --
+-- Name: ai_tools uq_ai_tools_tenant_name; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_tools
+    ADD CONSTRAINT uq_ai_tools_tenant_name UNIQUE (tenant_id, name);
+
+--
 -- Name: automations uq_automations_tenant_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1727,6 +1773,18 @@ CREATE INDEX idx_ai_tool_calls_tenant_id ON public.ai_tool_calls USING btree (te
 --
 
 CREATE INDEX idx_ai_tool_calls_tool_name ON public.ai_tool_calls USING btree (tenant_id, tool_name, created_at);
+
+--
+-- Name: idx_ai_tools_tenant_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ai_tools_tenant_id ON public.ai_tools USING btree (tenant_id);
+
+--
+-- Name: idx_ai_tools_updated_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ai_tools_updated_by ON public.ai_tools USING btree (updated_by);
 
 --
 -- Name: idx_audit_log_actor_user_id; Type: INDEX; Schema: public; Owner: -
@@ -2809,6 +2867,12 @@ CREATE UNIQUE INDEX uq_whatsapp_accounts_tenant_primary ON public.whatsapp_accou
 CREATE TRIGGER trg_ai_agent_config_updated_at BEFORE UPDATE ON public.ai_agent_config FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 --
+-- Name: ai_tools trg_ai_tools_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_ai_tools_updated_at BEFORE UPDATE ON public.ai_tools FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+--
 -- Name: audit_log trg_audit_log_immutable; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -3057,6 +3121,20 @@ ALTER TABLE ONLY public.ai_tool_calls
 
 ALTER TABLE ONLY public.ai_tool_calls
     ADD CONSTRAINT ai_tool_calls_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+--
+-- Name: ai_tools ai_tools_tenant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_tools
+    ADD CONSTRAINT ai_tools_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
+
+--
+-- Name: ai_tools ai_tools_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ai_tools
+    ADD CONSTRAINT ai_tools_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.users(id) ON DELETE SET NULL;
 
 --
 -- Name: audit_log audit_log_actor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -

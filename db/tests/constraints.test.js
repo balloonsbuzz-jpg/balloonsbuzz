@@ -224,6 +224,35 @@ describe('audit log', () => {
   }));
 });
 
+describe('AI agent config & tools', () => {
+  test('the agent defaults to DeepSeek with no key stored in the DB (env key is used)', async () => {
+    const r = await one(c, `SELECT provider, model, api_key_enc FROM ai_agent_config`);
+    expect(r).toEqual({ provider: 'deepseek', model: 'deepseek-chat', api_key_enc: null });
+  });
+
+  test('all 9 tools are seeded; safety tools are required and cannot be switched off', () => rollback(c, async () => {
+    const tools = (await c.query(`SELECT name, is_required FROM ai_tools ORDER BY sort_order`)).rows;
+    expect(tools.map((t) => t.name)).toEqual([
+      'get_pricing', 'send_photos', 'calculate_distance_charge', 'check_negotiation_limit', 'create_booking',
+      'handover_to_human', 'request_location', 'update_lead', 'schedule_followup']);
+    expect(tools.filter((t) => t.is_required).map((t) => t.name).sort())
+      .toEqual(['check_negotiation_limit', 'get_pricing', 'handover_to_human']);
+    await expectPgError(sp(c, () => c.query(`UPDATE ai_tools SET is_enabled = false WHERE name = 'handover_to_human'`)), '23514');
+    await c.query(`UPDATE ai_tools SET is_enabled = false WHERE name = 'schedule_followup'`);
+  }));
+
+  test('tool descriptions are editable but cannot be blanked; default is kept for reset', () => rollback(c, async () => {
+    await c.query(`UPDATE ai_tools SET description = 'Send up to 4 photos of our latest designs.' WHERE name = 'send_photos'`);
+    const r = await one(c, `SELECT description <> default_description AS changed FROM ai_tools WHERE name = 'send_photos'`);
+    expect(r.changed).toBe(true);
+    await expectPgError(sp(c, () => c.query(`UPDATE ai_tools SET description = '  ' WHERE name = 'send_photos'`)), '23514');
+  }));
+
+  test('unknown providers are rejected', () => rollback(c, async () => {
+    await expectPgError(sp(c, () => c.query(`UPDATE ai_agent_config SET provider = 'acme'`)), '23514');
+  }));
+});
+
 describe('seed data', () => {
   test('no seeded price is marked confirmed (all are TODO for the client)', async () => {
     const r = await one(c, `

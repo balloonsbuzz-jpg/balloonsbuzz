@@ -21,14 +21,18 @@ SELECT t.id,
 FROM tenants t WHERE t.slug = 'balloonsbuzz'
 ON CONFLICT (tenant_id) DO NOTHING;
 
+-- Provider/model/key are editable in the AI Agent screen. The API key comes from
+-- DEEPSEEK_API_KEY in .env unless an admin saves one in the UI (stored encrypted).
+-- Tools live in ai_tools (seed 005).
 INSERT INTO ai_agent_config (
-  tenant_id, provider, model, system_prompt, tools_enabled, handover_message, out_of_hours_message, settings)
+  tenant_id, provider, model, fallback_model, pricing_per_1m, system_prompt,
+  handover_message, out_of_hours_message, settings)
 SELECT t.id,
-       'anthropic',
-       'claude-sonnet-5-5',   -- configurable in the agent settings screen
+       'deepseek',
+       'deepseek-chat',
+       'deepseek-reasoner',
+       '{"input":0.27,"cached_input":0.07,"output":1.10,"currency":"USD"}'::jsonb,  -- same rates Whapter tracks; editable
        'PLACEHOLDER: replaced by prompts/balloonsbuzz-agent.md in Phase 4.',
-       '["get_pricing","send_photos","calculate_distance_charge","check_negotiation_limit",
-         "create_booking","handover_to_human","request_location","update_lead","schedule_followup"]'::jsonb,
        'Sure! Connecting you with our team now 😊 Someone will reply here shortly.',
        'Thanks for messaging BalloonsBuzz 🎈 Our team is offline right now. We''ll get back to you first thing!',
        '{"language":"en","currency_symbol":"₹"}'::jsonb

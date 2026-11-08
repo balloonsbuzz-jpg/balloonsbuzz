@@ -126,8 +126,9 @@ Full rules: [gallery-catalog.md](gallery-catalog.md).
 | F4 | Send service: text, image, document, template, buttons, list, location request; retries | meta-whatsapp.service | ✅ |
 | F5 | Shared inbox: realtime SSE, filters (bot / human / needs-human / unread), quick replies, media, notes | crm Inbox, human-inbox | ✅ |
 | F6 | Handover controls and history | crm-meta-send guards, human-inbox | ✅ |
-| F7 | AI agent: prompt editor, model settings, history window, response delay, test console | tenant_ai_settings, agent-runtime | ✅ |
-| F8 | Agent tools (§2) plus FAQ knowledge snippets | tool registry | ✅ |
+| F7 | **AI Agent screen** (Whapter's AI Settings): **editable system prompt** with version history, diff and one-click rollback; provider/model (**DeepSeek default**: `deepseek-chat`, fallback `deepseek-reasoner`); API key from `DEEPSEEK_API_KEY` or saved in the UI (encrypted; shown as ••••last4); temperature, history window, summary interval, max message length, messages per turn, response delay, handover keywords, handover and out-of-hours messages, bot on/off switch; **test console** (chat with the bot from the dashboard, with tool calls shown) | tenant_ai_settings, platform_whatsapp_ai_config, agent-runtime | ✅ |
+| F8 | **Tools screen** (Whapter's agent_tools overrides): the 9 tools with on/off, **editable description** (what the model reads) plus reset to default, and per-tool settings (for example photos per reply). Pricing, negotiation and handover are locked on. A tool-call log per conversation. Also FAQ knowledge snippets. | tool registry, agent_tools | ✅ |
+| F8b | DeepSeek specifics carried over from Whapter: the reply sanitizer (strips leaked reasoning and tool calls written as text, "DSML" markup), automatic prompt caching (static prompt first), and cost tracking per run in ₹ | reply-sanitizer.js, aiUsage.js | ✅ |
 | F9 | Catalog: occasions, themes, packages, add-ons, pricing rules | (new; replaces food menus) | ✅ |
 | F10 | Gallery: Google Drive sync + zip import, auto-parse of category/theme/price from names, import report, overrides, preview, enable/disable | MediaLibrary | ✅ |
 | F11 | Negotiation and distance settings | (new) | ✅ |
@@ -207,7 +208,8 @@ META_APP_ID  META_APP_SECRET  META_API_VERSION  META_GRAPH_BASE_URL
 WHATSAPP_PHONE_NUMBER_ID  WHATSAPP_WABA_ID  WHATSAPP_ACCESS_TOKEN  WHATSAPP_WEBHOOK_VERIFY_TOKEN
 STAFF_ALERT_PHONE
 # ai
-AI_PROVIDER  AI_MODEL  AI_API_KEY  AI_MAX_TOOL_ITERATIONS  AI_REQUEST_TIMEOUT_MS
+DEEPSEEK_API_KEY  AI_REQUEST_TIMEOUT_MS      # provider, model, prompt, tools, limits live in the DB (AI Agent screen)
+# optional, only if another provider is picked in the UI: OPENAI_API_KEY  ANTHROPIC_API_KEY  GEMINI_API_KEY
 # distance
 GOOGLE_MAPS_API_KEY            # optional; enables address geocoding + road distance
 # gallery (Google Drive sync)

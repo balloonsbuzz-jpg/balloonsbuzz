@@ -13,7 +13,7 @@ npm run migrate:status
 npm run migrate:down          # roll back the last migration (or: node db/migrate.js down all)
 npm run db:reset              # down all + up + seed (refused when NODE_ENV=production)
 npm run db:snapshot           # regenerate db/schema.sql
-npm run test:db               # 28 tests, each file in its own throwaway database
+npm run test:db               # 32 tests, each file in its own throwaway database
 ```
 
 Change the schema by adding `NNN_name.up.sql` + `NNN_name.down.sql`. **Never edit an applied migration**; the runner detects checksum changes and refuses to continue.
@@ -41,6 +41,7 @@ Change the schema by adding `NNN_name.up.sql` + `NNN_name.down.sql`. **Never edi
 | 007 messaging | templates, broadcasts, broadcast_recipients |
 | 008 automation | automations, followups |
 | 009 ops | webhook_events, ai_runs, ai_tool_calls, audit_log |
+| 010 ai | ai_tools (editable tool descriptions, on/off, config); DeepSeek default, UI-saved encrypted key on ai_agent_config |
 
 ## Rules the database enforces (not just the app)
 
