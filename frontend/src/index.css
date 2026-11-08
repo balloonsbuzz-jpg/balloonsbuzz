@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * BalloonsBuzz brand on Whapter's token system.
+ * Logo: rose-gold + champagne balloons. Pastels are too light for text/buttons,
+ * so the primary is a deeper rose (#B4566A, 4.7:1 on white) and the logo tones are tints.
+ */
+:root {
+  --bb-rose-50: #fdf4f3;
+  --bb-rose-100: #fae6e3;
+  --bb-rose-200: #f3cbc5;   /* logo "Balloons" rose */
+  --bb-rose-300: #e7a49c;
+  --bb-rose-500: #c96a79;
+  --bb-rose-600: #b4566a;   /* primary */
+  --bb-rose-700: #93445a;
+  --bb-gold-100: #fbf0d9;
+  --bb-gold-200: #f6e2b9;   /* logo "Buzz" champagne */
+  --bb-gold-500: #d4a24c;
+  --bb-gold-700: #8f6a22;
+
+  --background: #fffaf7;
+  --foreground: #2b2023;
+  --card: #ffffff;
+  --card-foreground: #2b2023;
+  --popover: #ffffff;
+  --popover-foreground: #2b2023;
+  --primary: var(--bb-rose-600);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bb-rose-50);
+  --secondary-foreground: var(--bb-rose-700);
+  --muted: #f7efec;
+  --muted-foreground: #74656a;
+  --accent: var(--bb-gold-100);
+  --accent-foreground: var(--bb-gold-700);
+  --destructive: #c62828;
+  --success: #2e7d4f;
+  --warning: #b26a00;
+  --border: #eee2de;
+  --input: #e6d8d4;
+  --ring: var(--bb-rose-500);
+  --sidebar: #fdf7f5;
+  --sidebar-border: #f0e4e0;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #141012;
+  --foreground: #f3eaec;
+  --card: #1c1619;
+  --card-foreground: #f3eaec;
+  --popover: #1f191c;
+  --popover-foreground: #f3eaec;
+  --primary: #e08a98;
+  --primary-foreground: #1c1012;
+  --secondary: #2a1f23;
+  --secondary-foreground: #f3cbc5;
+  --muted: #241c20;
+  --muted-foreground: #b3a3a8;
+  --accent: #2c2417;
+  --accent-foreground: #f6e2b9;
+  --destructive: #ef6b6b;
+  --success: #5fc48a;
+  --warning: #f0b45a;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #e08a98;
+  --sidebar: #110d0f;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+}
+
+@theme inline {
+  --font-sans: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-brand-rose-50: var(--bb-rose-50);
+  --color-brand-rose-200: var(--bb-rose-200);
+  --color-brand-gold-200: var(--bb-gold-200);
+  --color-brand-gold-500: var(--bb-gold-500);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+  }
+  ::selection { background: var(--bb-rose-200); color: #2b2023; }
+}
