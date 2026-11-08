@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+logs/
+coverage/
+dist/
+build/
+.DS_Store
+.vscode/
+.idea/
+# raw client photo archives never go in git
+*.zip
+tmp/
