@@ -12,6 +12,8 @@ function createApp() {
   if (env.TRUST_PROXY) app.set('trust proxy', 1);
 
   app.use(helmet());
+  // Meta webhook BEFORE the JSON parser: signature verification needs the raw bytes.
+  app.use('/webhook', require('./whatsapp/webhook.routes').router);
   // The SPA is served from the same origin (nginx proxies /api), so no CORS is granted.
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
@@ -28,6 +30,8 @@ function createApp() {
   app.use('/api', csrfGuard);
   app.use('/api/auth', require('./routes/auth.routes'));
   app.use('/api/agent', requireAuth, require('./routes/agent.routes'));
+  app.use('/api/settings', requireAuth, require('./routes/settings.routes'));
+  app.use('/api/media', requireAuth, require('./routes/media.routes'));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

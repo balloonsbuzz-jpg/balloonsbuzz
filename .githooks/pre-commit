@@ -2,6 +2,10 @@
 # Blocks commits that include env files or anything that looks like a secret.
 # Enabled with: git config core.hooksPath .githooks
 
+# If our output pipe is closed early (e.g. `git commit | head`), keep running so the
+# block still happens; a killed hook must never let a commit through.
+trap '' PIPE
+
 fail=0
 
 # 1) env files (only .env.example is allowed)

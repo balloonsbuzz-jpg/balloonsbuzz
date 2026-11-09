@@ -24,6 +24,17 @@ const schema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  // WhatsApp Cloud API (Meta)
+  META_APP_SECRET: z.string().min(8).optional(),             // verifies X-Hub-Signature-256 on webhooks
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(8).optional(),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),              // fallback when no token saved in Settings
+  META_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v20.0'),
+  META_GRAPH_BASE_URL: z.string().url().default('https://graph.facebook.com'),
+  GRAPH_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+  PUBLIC_BASE_URL: z.string().url().optional(),               // public HTTPS origin Meta calls, e.g. https://wa.balloonsbuzz.com
+  // worker
+  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
+  WORKER_POLL_MS: z.coerce.number().int().min(100).default(1000),
 });
 
 function load(source = process.env) {

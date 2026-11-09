@@ -32,7 +32,7 @@ export const NAV_SECTIONS = [
   { label: 'ADMIN', items: [
     { to: '/users', label: 'Users & Roles', icon: Users, permission: 'users:read', milestone: 'M2b' },
     { to: '/audit', label: 'Audit Log', icon: ClipboardText, permission: 'audit:read', milestone: 'M2b' },
-    { to: '/settings', label: 'Settings', icon: GearSix, permission: 'settings:read', milestone: 'M3' },
+    { to: '/settings', label: 'Settings', icon: GearSix, permission: 'settings:read' },
   ] },
 ];
 

@@ -3,8 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "description": "BalloonsBuzz WhatsApp automation platform",
-  "engines": { "node": ">=20" },
-  "workspaces": ["backend", "frontend"],
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev:api": "npm run dev -w backend",
     "dev:web": "npm run dev -w frontend",
@@ -18,7 +23,8 @@
     "db:up": "docker compose -f docker-compose.db.yml up -d --wait",
     "db:down": "docker compose -f docker-compose.db.yml down",
     "test:db": "jest --runInBand db/tests",
-    "create-owner": "node backend/scripts/create-owner.js"
+    "create-owner": "node backend/scripts/create-owner.js",
+    "dev:worker": "npm run dev:worker -w backend"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -30,6 +36,8 @@
   "jest": {
     "testEnvironment": "node",
     "testTimeout": 60000,
-    "roots": ["<rootDir>/db"]
+    "roots": [
+      "<rootDir>/db"
+    ]
   }
 }

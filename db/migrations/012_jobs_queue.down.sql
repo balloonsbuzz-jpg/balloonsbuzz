@@ -1,0 +1,2 @@
+ALTER TABLE webhook_events DROP COLUMN IF EXISTS job_id;
+DROP TABLE IF EXISTS jobs;

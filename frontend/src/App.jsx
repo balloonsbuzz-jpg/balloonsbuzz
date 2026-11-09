@@ -5,6 +5,7 @@ import Login from '@/pages/Login';
 import ComingSoon from '@/pages/ComingSoon';
 import AgentPage from '@/pages/ai/AgentPage';
 import ToolsPage from '@/pages/ai/ToolsPage';
+import SettingsPage from '@/pages/settings/SettingsPage';
 import { ALL_ITEMS } from '@/nav';
 
 function RequireAuth() {
@@ -41,6 +42,7 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="/ai/agent" element={<RequirePermission permission="agent:read"><AgentPage /></RequirePermission>} />
           <Route path="/ai/tools" element={<RequirePermission permission="agent:read"><ToolsPage /></RequirePermission>} />
+          <Route path="/settings" element={<RequirePermission permission="settings:read"><SettingsPage /></RequirePermission>} />
           {ALL_ITEMS.filter((i) => i.milestone).map((i) => (
             <Route key={i.to} path={i.to} element={<RequirePermission permission={i.permission}><ComingSoon /></RequirePermission>} />
           ))}

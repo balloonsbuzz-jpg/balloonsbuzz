@@ -80,6 +80,13 @@ test('login is written to the audit log', async () => {
   expect(rows.map((r) => r.action)).toContain('auth.login');
 });
 
+test('the logger keeps winston\'s internal Symbol keys (otherwise nothing is printed)', () => {
+  const LEVEL = Symbol.for('level');
+  const out = logger.redactForTest({ level: 'info', message: 'm', [LEVEL]: 'info', token: 't' });
+  expect(out[LEVEL]).toBe('info');
+  expect(out.token).toBe('[REDACTED]');
+});
+
 test('the logger redacts secrets but keeps analytics fields', () => {
   const out = logger.redactForTest({ password: 'x', api_key: 'y', access_token: 'z', nested: { secret: 's' }, input_tokens: 42 });
   expect(out).toMatchObject({ password: '[REDACTED]', api_key: '[REDACTED]', access_token: '[REDACTED]', nested: { secret: '[REDACTED]' }, input_tokens: 42 });
