@@ -45,6 +45,8 @@ const schema = z.object({
   GDRIVE_SYNC_INTERVAL_MIN: z.coerce.number().int().min(0).default(30),  // 0 = only the "Sync now" button
   // road distance (optional; without it: straight line × road factor)
   GOOGLE_MAPS_API_KEY: z.string().min(20).optional(),
+  // AI agent: wait this long after a customer message before answering (they often send several)
+  AI_DEBOUNCE_MS: z.coerce.number().int().min(0).max(60_000).default(2500),
   // worker
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
   WORKER_POLL_MS: z.coerce.number().int().min(100).default(1000),

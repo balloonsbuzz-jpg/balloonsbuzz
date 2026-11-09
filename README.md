@@ -46,6 +46,7 @@ npm test -w frontend     # UI units
 | M3 WhatsApp in/out | ✅ webhooks, sending, Postgres job queue (needs the real number + public URL to go live) |
 | M4 Inbox + handover | ✅ live inbox, take over / pause / resume, notes |
 | M5 Gallery, pricing, discounts, distance | ✅ zip import (821 photos, 377 sendable), Drive sync (needs `GDRIVE_API_KEY`), quote engine, Pricing & Rules |
-| M6 AI agent runtime | next |
+| M6 AI agent runtime | ✅ DeepSeek tool loop, outbound price guard, handover rules, test console (AI → Test chat), prompt in `prompts/balloonsbuzz-agent.md`; live eval in `docs/evals/` |
+| M7 Leads and bookings | next |
 
 Gallery import from a Drive zip: `npm run gallery:import -- "D:\path	oolder.zip"` (safe to re-run).

@@ -28,7 +28,7 @@ const LIST_COLS = `
 async function list(tenantId, userId, { filter = 'all', search, limit = 30, cursor } = {}) {
   if (!FILTERS[filter]) throw badRequest(`Unknown filter: ${filter}`);
   const params = [tenantId];
-  const where = [`cv.tenant_id = $1`, FILTERS[filter].replace('$USER', () => { params.push(userId); return `$${params.length}`; })];
+  const where = [`cv.tenant_id = $1`, `NOT cv.is_sandbox`, FILTERS[filter].replace('$USER', () => { params.push(userId); return `$${params.length}`; })];
   if (search) {
     const digits = search.replace(/\D/g, '');
     params.push(`%${search.trim().toLowerCase()}%`);
@@ -65,7 +65,7 @@ async function counts(tenantId, userId) {
             count(*) FILTER (WHERE unread_count > 0)::int AS unread,
             count(*) FILTER (WHERE assigned_user_id = $2 AND status <> 'closed')::int AS mine,
             count(*) FILTER (WHERE status <> 'closed')::int AS open
-       FROM conversations WHERE tenant_id = $1`, [tenantId, userId]);
+       FROM conversations WHERE tenant_id = $1 AND NOT is_sandbox`, [tenantId, userId]);
   return rows[0];
 }
 

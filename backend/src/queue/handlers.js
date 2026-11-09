@@ -27,4 +27,6 @@ module.exports = {
   auto_resume: autoResumeJob,
   mark_read: markReadJob,
   gallery_sync: (...args) => require('../gallery/sync.job').gallerySyncJob(...args),
+  ai_reply: (...args) => require('../agent/jobs').aiReplyJob(...args),
+  send_followup: (...args) => require('../agent/jobs').sendFollowupJob(...args),
 };

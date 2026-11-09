@@ -23,7 +23,7 @@ const redact = winston.format((info) => {
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
-  silent: process.env.NODE_ENV === 'test',
+  silent: process.env.NODE_ENV === 'test' && !process.env.TEST_LOGS,
   format: winston.format.combine(redact(), winston.format.timestamp(), winston.format.json()),
   transports: [new winston.transports.Console()],
 });

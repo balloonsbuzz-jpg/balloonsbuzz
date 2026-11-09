@@ -118,7 +118,8 @@ describe('handover controls', () => {
     await pool.query(`UPDATE jobs SET run_at = now() WHERE id = $1`, [job.id]);
     await drain();
     expect((await one(`SELECT handling_mode, bot_resume_at FROM conversations WHERE id = $1`, [id]))).toEqual({ handling_mode: 'bot', bot_resume_at: null });
-    expect((await canBotReply(id)).allowed).toBe(true);
+    // handling mode no longer blocks the bot (in tests the bot itself is switched off globally)
+    expect((await canBotReply(id)).reason || '').not.toMatch(/handling_mode/);
 
     const trail = (await pool.query(`SELECT trigger FROM handover_events WHERE conversation_id = $1 ORDER BY created_at`, [id])).rows.map((r) => r.trigger);
     expect(trail).toEqual(['agent_takeover', 'agent_pause', 'auto_resume']);
@@ -138,11 +139,14 @@ describe('handover controls', () => {
 
   test('turning the bot off globally also blocks replies', async () => {
     const id = await customerSays('hi', phoneN());
-    await pool.query(`UPDATE ai_agent_config SET is_enabled = false`);
+    await pool.query(`UPDATE ai_agent_config SET is_enabled = true`);
     try {
+      expect(await canBotReply(id)).toEqual({ allowed: true });
+      await pool.query(`UPDATE ai_agent_config SET is_enabled = false`);
       expect(await canBotReply(id)).toEqual({ allowed: false, reason: 'bot_disabled' });
     } finally {
-      await pool.query(`UPDATE ai_agent_config SET is_enabled = true`);
+      // tests run with the bot off (no model behind it)
+      await pool.query(`UPDATE ai_agent_config SET is_enabled = false`);
     }
   });
 });

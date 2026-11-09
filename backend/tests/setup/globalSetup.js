@@ -23,6 +23,9 @@ module.exports = async () => {
   const { up, seed } = require('../../../db/migrate');
   await up(client, () => {});
   await seed(client, () => {});
+  // The bot stays off unless a test turns it on, so suites that simulate customers
+  // never reach a model. Agent tests point it at the mock LLM (LLM_MOCK_PORT).
+  await client.query(`UPDATE ai_agent_config SET is_enabled = false`);
   await client.end();
 
   Object.assign(process.env, {
@@ -47,6 +50,8 @@ module.exports = async () => {
     DRIVE_MOCK_PORT: '47812',
     GDRIVE_API_BASE: 'http://127.0.0.1:47812/drive/v3',
     GDRIVE_SYNC_INTERVAL_MIN: '0',
+    AI_DEBOUNCE_MS: '0',
+    LLM_MOCK_PORT: '47813',
   });
   delete process.env.GOOGLE_MAPS_API_KEY;   // distance tests use the straight-line estimate
   fs.writeFileSync(path.join(os.tmpdir(), 'bb-api-test-db.json'), JSON.stringify({ adminUrl, name }));

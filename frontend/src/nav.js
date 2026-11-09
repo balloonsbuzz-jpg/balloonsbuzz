@@ -1,7 +1,7 @@
 // Sidebar structure (Whapter-style sections). `milestone` marks screens not built yet.
 import {
   SquaresFour, Tray, AddressBook, CalendarCheck, Images, CurrencyInr, Robot, Wrench,
-  ChatTeardropText, Megaphone, ClockCountdown, ChartLineUp, Users, ClipboardText, GearSix,
+  ChatTeardropText, ChatsCircle, Megaphone, ClockCountdown, ChartLineUp, Users, ClipboardText, GearSix,
 } from '@phosphor-icons/react';
 
 export const NAV_SECTIONS = [
@@ -20,6 +20,7 @@ export const NAV_SECTIONS = [
   { label: 'AI', items: [
     { to: '/ai/agent', label: 'AI Agent', icon: Robot, permission: 'agent:read' },
     { to: '/ai/tools', label: 'Tools', icon: Wrench, permission: 'agent:read' },
+    { to: '/ai/test', label: 'Test chat', icon: ChatsCircle, permission: 'agent:write' },
   ] },
   { label: 'MARKETING', items: [
     { to: '/templates', label: 'Templates', icon: ChatTeardropText, permission: 'templates:read', milestone: 'M8' },

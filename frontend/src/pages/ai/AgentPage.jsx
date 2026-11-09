@@ -10,6 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { diffLines } from '@/lib/diff';
 import { cn } from '@/lib/utils';
@@ -53,6 +56,15 @@ export default function AgentPage() {
   if (isLoading || !draft) return <PageHeader title="AI Agent" description="Loading…" />;
   if (error) return <PageHeader title="AI Agent" description="Could not load the agent settings." />;
 
+  async function loadRecommended() {
+    try {
+      const { data } = await api.get('/agent/recommended-prompt');
+      set('system_prompt')(data.prompt);
+      setTab('prompt');
+      toast.success('Recommended prompt loaded. Review it and press Save.');
+    } catch (e) { toast.error(errorMessage(e)); }
+  }
+
   function onSave() {
     const body = { version: config.version, ...(note.trim() ? { change_note: note.trim() } : {}) };
     for (const k of dirtyKeys) body[k] = draft[k];
@@ -73,7 +85,10 @@ export default function AgentPage() {
       />
 
       {!config.system_prompt || config.system_prompt.startsWith('PLACEHOLDER') ? (
-        <Notice tone="warning">The prompt is still a placeholder. The full BalloonsBuzz sales prompt is written in Phase 4 and can be edited here afterwards.</Notice>
+        <Notice tone="warning">
+          No prompt has been saved yet, so the bot uses the recommended BalloonsBuzz prompt.
+          {canWrite && <> <button type="button" className="font-bold underline" onClick={loadRecommended}>Load it into the editor</button> to read or change it.</>}
+        </Notice>
       ) : null}
       {config.api_key_source === 'none' && (
         <Notice tone="warning">No API key is configured for {config.provider}. Add <code className="font-mono">{config.env_key_name || 'an API key'}</code> to the server .env, or save a key under “Model & API key”.</Notice>
@@ -87,7 +102,7 @@ export default function AgentPage() {
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prompt"><PromptTab draft={draft} set={set} canWrite={canWrite} /></TabsContent>
+        <TabsContent value="prompt"><PromptTab draft={draft} set={set} canWrite={canWrite} onLoadRecommended={loadRecommended} /></TabsContent>
         <TabsContent value="model"><ModelTab draft={draft} set={set} config={config} canWrite={canWrite} /></TabsContent>
         <TabsContent value="behaviour"><BehaviourTab draft={draft} set={set} canWrite={canWrite} /></TabsContent>
         <TabsContent value="history"><HistoryTab config={config} canWrite={canWrite} dirty={dirtyKeys.length > 0} /></TabsContent>
@@ -119,7 +134,7 @@ function Notice({ tone = 'info', children }) {
   );
 }
 
-function PromptTab({ draft, set, canWrite }) {
+function PromptTab({ draft, set, canWrite, onLoadRecommended }) {
   const chars = draft.system_prompt?.length || 0;
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
@@ -137,7 +152,10 @@ function PromptTab({ draft, set, canWrite }) {
             className="min-h-[460px] font-mono text-[13px] leading-relaxed"
             spellCheck={false}
           />
-          <p className={cn('mt-2 text-right text-xs', chars > 50000 ? 'text-destructive' : 'text-muted-foreground')}>{chars.toLocaleString()} / 50,000 characters</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {canWrite ? <Button type="button" size="sm" variant="ghost" onClick={onLoadRecommended}>Load the recommended prompt</Button> : <span />}
+            <p className={cn('text-xs', chars > 50000 ? 'text-destructive' : 'text-muted-foreground')}>{chars.toLocaleString()} / 50,000 characters</p>
+          </div>
         </CardContent>
       </Card>
       <div className="space-y-4">
@@ -153,7 +171,8 @@ function PromptTab({ draft, set, canWrite }) {
         <Card className="border-dashed">
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Robot size={18} /> Test console</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Chat with the bot from here and watch its tool calls. Arrives with the AI runtime (M6).
+            Chat with the bot as a customer and watch every tool call, without anything reaching WhatsApp.
+            <Link to="/ai/test" className="mt-2 block font-bold text-primary hover:underline">Open the test chat →</Link>
           </CardContent>
         </Card>
       </div>
@@ -271,7 +290,6 @@ function BehaviourTab({ draft, set, canWrite }) {
         <CardHeader><CardTitle>Memory & reasoning</CardTitle><CardDescription>How much of the chat the bot reads, and its limits per turn.</CardDescription></CardHeader>
         <CardContent className="grid grid-cols-2 gap-4">
           <NumberField id="max_history_messages" label="Recent messages read" value={draft.max_history_messages} onChange={set('max_history_messages')} min={1} max={200} />
-          <NumberField id="summary_every_messages" label="Summarise every" suffix="messages" value={draft.summary_every_messages} onChange={set('summary_every_messages')} min={1} max={500} />
           <NumberField id="max_tool_iterations" label="Max tool calls per reply" value={draft.max_tool_iterations} onChange={set('max_tool_iterations')} min={1} max={20} />
           <NumberField id="stuck_threshold" label="Hand over after" suffix="confused turns" value={draft.stuck_threshold} onChange={set('stuck_threshold')} min={1} max={20} />
         </CardContent>

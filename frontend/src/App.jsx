@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Login from '@/pages/Login';
 import ComingSoon from '@/pages/ComingSoon';
 import AgentPage from '@/pages/ai/AgentPage';
+import TestChatPage from '@/pages/ai/TestChatPage';
 import ToolsPage from '@/pages/ai/ToolsPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
 import InboxPage from '@/pages/inbox/InboxPage';
@@ -44,6 +45,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Home />} />
           <Route path="/ai/agent" element={<RequirePermission permission="agent:read"><AgentPage /></RequirePermission>} />
+          <Route path="/ai/test" element={<RequirePermission permission="agent:write"><TestChatPage /></RequirePermission>} />
           <Route path="/ai/tools" element={<RequirePermission permission="agent:read"><ToolsPage /></RequirePermission>} />
           <Route path="/inbox" element={<RequirePermission permission="inbox:read"><InboxPage /></RequirePermission>} />
           <Route path="/inbox/:id" element={<RequirePermission permission="inbox:read"><InboxPage /></RequirePermission>} />

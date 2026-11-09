@@ -19,12 +19,12 @@ function insideWindow(lastInboundAt, now = Date.now()) {
 
 /**
  * Queue a message to an existing conversation.
- * @param {object} p { tenantId, conversationId, type, content, senderType:'bot'|'agent'|'system', senderUserId, replyToMessageId, aiRunId, galleryItemId }
+ * @param {object} p { tenantId, conversationId, type, content, senderType:'bot'|'agent'|'system', senderUserId, replyToMessageId, aiRunId, galleryItemId, delayMs }
  */
 async function enqueueMessage(p, db) {
   const run = async (c) => {
     const { rows } = await c.query(
-      `SELECT cv.id, cv.tenant_id, cv.contact_id, cv.last_inbound_at, ct.phone, ct.opted_in,
+      `SELECT cv.id, cv.tenant_id, cv.contact_id, cv.last_inbound_at, cv.is_sandbox, ct.phone, ct.opted_in,
             (cv.last_inbound_at > now() - interval '24 hours') AS window_open
          FROM conversations cv JOIN contacts ct ON ct.id = cv.contact_id
         WHERE cv.id = $1 AND cv.tenant_id = $2`, [p.conversationId, p.tenantId]);
@@ -36,16 +36,24 @@ async function enqueueMessage(p, db) {
     }
     buildPayload(conv.phone, p.type, p.content);   // validate now; rebuilt at send time
     const shape = storedShape(p.type, p.content);
+    // Sandbox (AI test console): stored as sent, never handed to Meta.
     const { rows: [msg] } = await c.query(
       `INSERT INTO messages (tenant_id, conversation_id, contact_id, direction, sender_type, sender_user_id, message_type,
-                             body, payload, reply_to_message_id, status, ai_run_id, gallery_item_id)
-       VALUES ($1,$2,$3,'outbound',$4,$5,$6,$7,$8,$9,'queued',$10,$11) RETURNING *`,
+                             body, payload, reply_to_message_id, status, ai_run_id, gallery_item_id, wa_message_id, sent_at)
+       VALUES ($1,$2,$3,'outbound',$4,$5,$6,$7,$8,$9,$10,$11,$12,
+               CASE WHEN $13 THEN 'sandbox.' || gen_random_uuid() END, CASE WHEN $13 THEN now() END) RETURNING *`,
       [p.tenantId, conv.id, conv.contact_id, p.senderType, p.senderUserId || null, shape.message_type, shape.body,
-        JSON.stringify({ send: { type: p.type, content: p.content } }), p.replyToMessageId || null, p.aiRunId || null, p.galleryItemId || null]);
+        JSON.stringify({ send: { type: p.type, content: p.content } }), p.replyToMessageId || null,
+        conv.is_sandbox ? 'sent' : 'queued', p.aiRunId || null, p.galleryItemId || null, conv.is_sandbox]);
     await c.query(
       `UPDATE conversations SET last_message_at = now(), last_message_preview = $2, last_message_direction = 'outbound' WHERE id = $1`,
       [conv.id, previewOf(shape)]);
-    await enqueue({ tenantId: p.tenantId, name: 'send_message', payload: { message_id: msg.id }, priority: p.senderType === 'agent' ? 20 : 10, maxAttempts: 6 }, c);
+    if (!conv.is_sandbox) {
+      await enqueue({
+        tenantId: p.tenantId, name: 'send_message', payload: { message_id: msg.id },
+        priority: p.senderType === 'agent' ? 20 : 10, maxAttempts: 6, delayMs: p.delayMs || 0,
+      }, c);
+    }
     await bus.publish({ tenantId: p.tenantId, type: 'message.new', conversation_id: conv.id, message_id: msg.id }, c);
     return msg;
   };
@@ -76,7 +84,7 @@ async function sendToPhone({ tenantId, phone: rawPhone, type, content, senderTyp
 /** Worker handler for send_message jobs. */
 async function sendMessageJob({ message_id: id }, job) {
   const { rows } = await query(
-    `SELECT m.*, ct.phone, cv.whatsapp_account_id, r.wa_message_id AS reply_wamid
+    `SELECT m.*, ct.phone, cv.whatsapp_account_id, cv.handling_mode, r.wa_message_id AS reply_wamid
        FROM messages m
        JOIN conversations cv ON cv.id = m.conversation_id
        JOIN contacts ct ON ct.id = m.contact_id
@@ -85,6 +93,12 @@ async function sendMessageJob({ message_id: id }, job) {
   const m = rows[0];
   if (!m) return;
   if (m.status !== 'queued' && m.status !== 'sending') return;   // cancelled, or already sent by a previous attempt
+  // A person took over while this bot message was waiting (typing delay): drop it.
+  if (m.sender_type === 'bot' && m.handling_mode !== 'bot') {
+    await query(`UPDATE messages SET status = 'cancelled', error_message = 'Not sent: a team member took over' WHERE id = $1 AND status = 'queued'`, [id]);
+    await bus.publish({ tenantId: m.tenant_id, type: 'message.status', conversation_id: m.conversation_id, message_id: id, status: 'cancelled' });
+    return;
+  }
 
   const send = m.payload?.send;
   if (!send) throw new PermanentError('Message has no send payload');

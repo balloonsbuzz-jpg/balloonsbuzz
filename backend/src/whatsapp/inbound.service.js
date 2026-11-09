@@ -7,6 +7,7 @@ const { normalizeInbound, previewOf } = require('./parse');
 const { routeByPhoneNumberId } = require('./account.service');
 const bus = require('../realtime/bus');
 const { switchMode, matchesHandoverKeyword } = require('../conversations/handover.service');
+const { scheduleAiReply, cancelFollowupsOnReply } = require('../agent/jobs');
 
 const STATUS_RANK = { queued: 0, sending: 1, sent: 2, delivered: 3, read: 4 };
 
@@ -94,11 +95,19 @@ async function handleInboundMessage(ev) {
           WHERE id = $1`, [conv.id, sentAt, previewOf(n)]);
     }
     await bus.publish({ tenantId: route.tenantId, type: 'message.new', conversation_id: conv.id, direction: 'inbound' }, c);
-    return { conversationId: conv.id };
+    await cancelFollowupsOnReply(conv.id, c);
+    return { conversationId: conv.id, messageId: inserted[0].id };
   });
+  if (!stored) return;
 
-  if (stored && ['text', 'button', 'interactive'].includes(n.message_type)) {
-    await maybeKeywordHandover(route.tenantId, stored.conversationId, n.body);
+  let handedOver = false;
+  if (['text', 'button', 'interactive'].includes(n.message_type)) {
+    handedOver = await maybeKeywordHandover(route.tenantId, stored.conversationId, n.body);
+  }
+  // The AI answers after a short pause (several quick messages are answered together).
+  // The job re-checks bot mode, so a takeover in the meantime silences it.
+  if (!handedOver && n.message_type !== 'reaction') {
+    await scheduleAiReply({ tenantId: route.tenantId, conversationId: stored.conversationId, messageId: stored.messageId });
   }
 }
 
@@ -107,15 +116,16 @@ async function maybeKeywordHandover(tenantId, conversationId, text) {
   const { rows } = await query(`SELECT handover_keywords, handover_message FROM ai_agent_config WHERE tenant_id = $1`, [tenantId]);
   const cfg = rows[0];
   const keyword = cfg && matchesHandoverKeyword(text, cfg.handover_keywords);
-  if (!keyword) return;
-  await withTx(async (c) => {
+  if (!keyword) return false;
+  return withTx(async (c) => {
     const { rows: [cv] } = await c.query(`SELECT handling_mode FROM conversations WHERE id = $1`, [conversationId]);
-    if (cv?.handling_mode !== 'bot') return;   // a human already has it
+    if (cv?.handling_mode !== 'bot') return true;   // a human already has it
     await switchMode(c, { tenantId, conversationId, to: 'human', trigger: 'keyword', reason: `Customer asked for a person ("${keyword}")`, metadata: { keyword } });
     if (cfg.handover_message) {
       const { enqueueMessage } = require('./outbound.service');
       await enqueueMessage({ tenantId, conversationId, type: 'text', content: { text: cfg.handover_message }, senderType: 'system' }, c);
     }
+    return true;
   });
 }
 
@@ -159,4 +169,4 @@ async function handleStatus(ev, job) {
   return 'processed';
 }
 
-module.exports = { processWebhookEvent };
+module.exports = { processWebhookEvent, maybeKeywordHandover };

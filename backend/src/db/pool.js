@@ -1,8 +1,12 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const { env } = require('../config/env');
 const logger = require('../lib/logger');
 
 const { sslOptions } = require('../../../db/ssl');
+
+// DATE columns stay 'YYYY-MM-DD' strings. Turning them into JS Dates (local midnight)
+// shifts event dates by a day when serialised to UTC from IST.
+types.setTypeParser(1082, (v) => v);
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,

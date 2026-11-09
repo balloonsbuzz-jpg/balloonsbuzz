@@ -32,4 +32,40 @@ router.post('/tools/:name/reset', write, ah(async (req, res) => {
   res.json({ tool: await aiTools.resetDescription(req, parse(toolName, req.params.name)) });
 }));
 
+// The recommended BalloonsBuzz prompt (prompts/balloonsbuzz-agent.md), to load into the editor.
+router.get('/recommended-prompt', read, ah(async (req, res) => {
+  const fs = require('fs');
+  const { PROMPT_FILE } = require('../agent/context');
+  res.json({ prompt: fs.readFileSync(PROMPT_FILE, 'utf8') });
+}));
+
+// ── test console: a private sandbox chat with the real agent (never sent to WhatsApp) ──
+const sandbox = require('../agent/sandbox');
+
+router.get('/sandbox', write, ah(async (req, res) => res.json(await sandbox.state(req.user))));
+
+const sayBody = z.object({
+  text: z.string().trim().min(1).max(2000).optional(),
+  location: z.object({
+    lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180),
+    name: z.string().trim().max(100).optional(), address: z.string().trim().max(300).optional(),
+  }).strict().optional(),
+}).strict().refine((b) => b.text || b.location, 'Type a message or share a location');
+
+router.post('/sandbox/messages', write, ah(async (req, res) => {
+  const b = parse(sayBody, req.body);
+  const result = await sandbox.customerSays(req.user, b);
+  res.json({ result, ...(await sandbox.state(req.user)) });
+}));
+
+router.post('/sandbox/reset', write, ah(async (req, res) => {
+  await sandbox.reset(req.user);
+  res.json(await sandbox.state(req.user));
+}));
+
+router.post('/sandbox/resume', write, ah(async (req, res) => {
+  await sandbox.resume(req.user);
+  res.json(await sandbox.state(req.user));
+}));
+
 module.exports = router;
