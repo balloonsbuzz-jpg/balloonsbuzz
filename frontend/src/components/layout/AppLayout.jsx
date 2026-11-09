@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { useRealtime } from '@/hooks/useRealtime';
 import { List } from '@phosphor-icons/react';
 import Sidebar from './Sidebar';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,9 @@ export default function AppLayout() {
     try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { pathname } = useLocation();
+  const fullBleed = pathname.startsWith('/inbox');
+  useRealtime(true);
 
   const toggleCollapse = () => setCollapsed((c) => {
     try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1'); } catch { /* ignore */ }
@@ -30,9 +34,11 @@ export default function AppLayout() {
       </header>
 
       <main className={cn('transition-[padding] duration-200', collapsed ? 'lg:pl-[72px]' : 'lg:pl-64')}>
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
-          <Outlet />
-        </div>
+        {fullBleed ? <Outlet /> : (
+          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+            <Outlet />
+          </div>
+        )}
       </main>
     </div>
   );

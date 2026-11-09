@@ -9,7 +9,7 @@ export const NAV_SECTIONS = [
     { to: '/dashboard', label: 'Dashboard', icon: SquaresFour, permission: 'dashboard:read', milestone: 'M9' },
   ] },
   { label: 'CONVERSATIONS', items: [
-    { to: '/inbox', label: 'Inbox', icon: Tray, permission: 'inbox:read', milestone: 'M4' },
+    { to: '/inbox', label: 'Inbox', icon: Tray, permission: 'inbox:read', badge: 'needs_human' },
     { to: '/contacts', label: 'Contacts & Leads', icon: AddressBook, permission: 'contacts:read', milestone: 'M7' },
     { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings:read', milestone: 'M7' },
   ] },

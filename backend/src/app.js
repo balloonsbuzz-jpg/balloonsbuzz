@@ -32,6 +32,8 @@ function createApp() {
   app.use('/api/agent', requireAuth, require('./routes/agent.routes'));
   app.use('/api/settings', requireAuth, require('./routes/settings.routes'));
   app.use('/api/media', requireAuth, require('./routes/media.routes'));
+  app.use('/api/conversations', requireAuth, require('./routes/conversations.routes'));
+  app.use('/api/stream', requireAuth, require('./routes/stream.routes'));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

@@ -4,10 +4,12 @@ import { NAV_SECTIONS } from '@/nav';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
+import { useCounts } from '@/pages/inbox/useInbox';
 
 export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onCloseDrawer }) {
   const { user, can, logout } = useAuth();
   const { dark, toggle } = useTheme();
+  const { data: counts } = useCounts();
 
   const sections = NAV_SECTIONS
     .map((s) => ({ ...s, items: s.items.filter((i) => can(i.permission)) }))
@@ -44,7 +46,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
                 {section.label}
               </p>
               <ul className="space-y-0.5">
-                {section.items.map(({ to, label, icon: Icon, milestone }) => (
+                {section.items.map(({ to, label, icon: Icon, milestone, badge }) => (
                   <li key={to}>
                     <NavLink
                       to={to}
@@ -62,6 +64,11 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
                         <>
                           <Icon size={19} weight={isActive ? 'fill' : 'regular'} className="shrink-0" />
                           <span className={cn('flex-1 truncate', collapsed && 'lg:hidden')}>{label}</span>
+                          {badge && counts?.[badge] > 0 && (
+                            <span className={cn('rounded-full bg-destructive px-1.5 text-[11px] font-bold text-white', collapsed && 'lg:absolute lg:ml-5 lg:-mt-5')} aria-label={`${counts[badge]} waiting for a human`}>
+                              {counts[badge]}
+                            </span>
+                          )}
                           {milestone && (
                             <span className={cn('rounded-full bg-accent px-1.5 py-px text-[10px] font-bold text-accent-foreground', collapsed && 'lg:hidden')}>
                               soon

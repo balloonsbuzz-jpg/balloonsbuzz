@@ -9,6 +9,7 @@ const { getForSending, getPrimary } = require('./account.service');
 const { previewOf } = require('./parse');
 const graph = require('./graph');
 const logger = require('../lib/logger');
+const bus = require('../realtime/bus');
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -23,12 +24,13 @@ function insideWindow(lastInboundAt, now = Date.now()) {
 async function enqueueMessage(p, db) {
   const run = async (c) => {
     const { rows } = await c.query(
-      `SELECT cv.id, cv.tenant_id, cv.contact_id, cv.last_inbound_at, ct.phone, ct.opted_in
+      `SELECT cv.id, cv.tenant_id, cv.contact_id, cv.last_inbound_at, ct.phone, ct.opted_in,
+            (cv.last_inbound_at > now() - interval '24 hours') AS window_open
          FROM conversations cv JOIN contacts ct ON ct.id = cv.contact_id
         WHERE cv.id = $1 AND cv.tenant_id = $2`, [p.conversationId, p.tenantId]);
     const conv = rows[0];
     if (!conv) throw notFound('Conversation not found');
-    if (p.type !== 'template' && !insideWindow(conv.last_inbound_at)) {
+    if (p.type !== 'template' && !conv.window_open) {   // computed by the DB clock
       throw conflict('The 24-hour reply window is closed: the customer has not messaged in the last 24 hours. Send an approved template instead.',
         { code: 'outside_24h_window', last_inbound_at: conv.last_inbound_at });
     }
@@ -44,6 +46,7 @@ async function enqueueMessage(p, db) {
       `UPDATE conversations SET last_message_at = now(), last_message_preview = $2, last_message_direction = 'outbound' WHERE id = $1`,
       [conv.id, previewOf(shape)]);
     await enqueue({ tenantId: p.tenantId, name: 'send_message', payload: { message_id: msg.id }, priority: p.senderType === 'agent' ? 20 : 10, maxAttempts: 6 }, c);
+    await bus.publish({ tenantId: p.tenantId, type: 'message.new', conversation_id: conv.id, message_id: msg.id }, c);
     return msg;
   };
   return db ? run(db) : withTx(run);
@@ -99,6 +102,7 @@ async function sendMessageJob({ message_id: id }, job) {
     }
     await query(`UPDATE messages SET status = 'failed', failed_at = now(), error_code = $2, error_message = $3 WHERE id = $1`,
       [id, err.code != null ? String(err.code) : null, String(err.message).slice(0, 1000)]);
+    await bus.publish({ tenantId: m.tenant_id, type: 'message.status', conversation_id: m.conversation_id, message_id: id, status: 'failed' });
     throw new PermanentError(err.message);
   }
 
@@ -110,6 +114,7 @@ async function sendMessageJob({ message_id: id }, job) {
       `UPDATE messages SET status = CASE WHEN status IN ('delivered','read') THEN status ELSE 'sent' END,
               wa_message_id = $2, sent_at = COALESCE(sent_at, now()), error_code = NULL, error_message = NULL
         WHERE id = $1`, [id, wamid]);
+    await bus.publish({ tenantId: m.tenant_id, type: 'message.status', conversation_id: m.conversation_id, message_id: id, status: 'sent' });
   } catch (err) {
     logger.error('message sent but status update failed', { messageId: id, wamid, error: err.message });
     throw new PermanentError(`Sent (wamid ${wamid}) but could not record it: ${err.message}`);
