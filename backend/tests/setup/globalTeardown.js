@@ -12,4 +12,5 @@ module.exports = async () => {
   await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
   await admin.end();
   fs.unlinkSync(file);
+  fs.rmSync(path.join(os.tmpdir(), `bb-gallery-test-${name}`), { recursive: true, force: true });
 };

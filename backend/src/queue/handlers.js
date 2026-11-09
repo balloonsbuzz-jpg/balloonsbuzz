@@ -26,4 +26,5 @@ module.exports = {
   send_message: sendMessageJob,
   auto_resume: autoResumeJob,
   mark_read: markReadJob,
+  gallery_sync: (...args) => require('../gallery/sync.job').gallerySyncJob(...args),
 };

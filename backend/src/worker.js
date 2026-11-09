@@ -9,8 +9,15 @@ const handlers = require('./queue/handlers');
 const worker = createWorker({ handlers, concurrency: env.WORKER_CONCURRENCY, pollMs: env.WORKER_POLL_MS });
 worker.start();
 
+// Periodic Drive gallery sync (only when GDRIVE_API_KEY is set).
+const { scheduleDriveSyncs } = require('./gallery/sync.job');
+const tickSchedules = () => scheduleDriveSyncs().catch((err) => logger.warn('gallery sync scheduling failed', { error: err.message }));
+const scheduleTimer = setInterval(tickSchedules, 60_000);
+tickSchedules();
+
 async function shutdown(signal) {
   logger.info(`${signal} received, finishing running jobs`);
+  clearInterval(scheduleTimer);
   await worker.stop();
   await pool.end();
   process.exit(0);

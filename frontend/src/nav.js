@@ -14,8 +14,8 @@ export const NAV_SECTIONS = [
     { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings:read', milestone: 'M7' },
   ] },
   { label: 'CATALOGUE', items: [
-    { to: '/gallery', label: 'Gallery', icon: Images, permission: 'gallery:read', milestone: 'M5' },
-    { to: '/pricing', label: 'Pricing & Rules', icon: CurrencyInr, permission: 'pricing:read', milestone: 'M5' },
+    { to: '/gallery', label: 'Gallery', icon: Images, permission: 'gallery:read' },
+    { to: '/pricing', label: 'Pricing & Rules', icon: CurrencyInr, permission: 'pricing:read' },
   ] },
   { label: 'AI', items: [
     { to: '/ai/agent', label: 'AI Agent', icon: Robot, permission: 'agent:read' },

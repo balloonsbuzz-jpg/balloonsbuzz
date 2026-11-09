@@ -13,3 +13,6 @@ build/
 # raw client photo archives never go in git
 *.zip
 tmp/
+
+# local gallery photos (GALLERY_STORAGE=local)
+.data/

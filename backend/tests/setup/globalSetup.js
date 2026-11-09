@@ -39,6 +39,15 @@ module.exports = async () => {
     META_GRAPH_BASE_URL: 'http://127.0.0.1:47811',
     GRAPH_TIMEOUT_MS: '2000',
     PUBLIC_BASE_URL: 'https://wa.example.test',
+    // Gallery: photos on local disk in a temp folder; Drive API is a mock server
+    GALLERY_STORAGE: 'local',
+    GALLERY_LOCAL_DIR: path.join(os.tmpdir(), `bb-gallery-test-${name}`),
+    GDRIVE_API_KEY: 'test-drive-api-key-000000',
+    GDRIVE_FOLDER_ID: 'ROOTFOLDER0001',
+    DRIVE_MOCK_PORT: '47812',
+    GDRIVE_API_BASE: 'http://127.0.0.1:47812/drive/v3',
+    GDRIVE_SYNC_INTERVAL_MIN: '0',
   });
+  delete process.env.GOOGLE_MAPS_API_KEY;   // distance tests use the straight-line estimate
   fs.writeFileSync(path.join(os.tmpdir(), 'bb-api-test-db.json'), JSON.stringify({ adminUrl, name }));
 };

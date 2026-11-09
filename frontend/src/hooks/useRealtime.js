@@ -26,6 +26,10 @@ export function useRealtime(enabled) {
       if (d.conversation_id) qc.invalidateQueries({ queryKey: ['messages', d.conversation_id] });
     });
     es.addEventListener('conversation.updated', onMessage);
+    // Gallery import / Drive sync progress
+    es.addEventListener('gallery.sync', () => {
+      qc.invalidateQueries({ queryKey: ['gallery'] });
+    });
     // After a reconnect we may have missed events: refresh everything inbox-related.
     es.addEventListener('hello', () => {
       qc.invalidateQueries({ queryKey: ['conversations'] });

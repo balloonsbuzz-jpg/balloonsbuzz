@@ -8,7 +8,9 @@
     "dev": "node --watch src/server.js",
     "test": "jest --runInBand",
     "worker": "node src/worker.js",
-    "dev:worker": "node --watch src/worker.js"
+    "dev:worker": "node --watch src/worker.js",
+    "test:unit": "jest --config jest.unit.config.js",
+    "gallery:import": "node scripts/gallery-import.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -19,12 +21,15 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "sharp": "^0.33.5",
     "winston": "^3.17.0",
+    "yauzl": "^3.2.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "supertest": "^7.0.0"
+    "supertest": "^7.0.0",
+    "yazl": "^2.5.1"
   },
   "jest": {
     "testEnvironment": "node",
@@ -33,6 +38,10 @@
       "<rootDir>/tests"
     ],
     "globalSetup": "<rootDir>/tests/setup/globalSetup.js",
-    "globalTeardown": "<rootDir>/tests/setup/globalTeardown.js"
+    "globalTeardown": "<rootDir>/tests/setup/globalTeardown.js",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/unit/"
+    ]
   }
 }

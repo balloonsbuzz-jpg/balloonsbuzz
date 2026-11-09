@@ -58,4 +58,43 @@ router.get('/whatsapp/test-message/:id', read, ah(async (req, res) => {
   res.json({ message: rows[0] || null });
 }));
 
+// ── business details (Settings → Business). The base pin lives in Pricing & Rules → Distance. ──
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const businessSchema = z.object({
+  business_name: z.string().trim().min(2).max(100),
+  base_address: z.string().trim().max(300).nullable(),
+  advance_type: z.enum(['percent', 'fixed']),
+  advance_value: z.coerce.number().min(0).max(1_000_000).nullable(),
+  min_lead_time_hours: z.coerce.number().int().min(0).max(24 * 60),
+  max_bookings_per_day: z.coerce.number().int().min(1).max(100).nullable(),
+  working_hours: z.record(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']),
+    z.array(z.tuple([z.string().regex(HHMM), z.string().regex(HHMM)])).max(3)),
+  staff_alert_phones: z.array(z.string().regex(/^\+?\d{10,15}$/, 'Use a phone number like 919392534625')).max(10),
+  upi_vpa: z.string().trim().regex(/^[\w.-]{2,256}@[a-zA-Z]{2,64}$/, 'Use a UPI id like balloonsbuzz@okhdfc').nullable(),
+  upi_payee_name: z.string().trim().max(100).nullable(),
+}).partial().strict()
+  .refine((b) => !(b.advance_type === 'percent' && b.advance_value > 100), { message: 'A percentage advance cannot exceed 100', path: ['advance_value'] });
+
+const BUSINESS_COLS = `id, business_name, base_address, advance_type, advance_value, min_lead_time_hours, max_bookings_per_day,
+  working_hours, staff_alert_phones, upi_vpa, upi_payee_name, updated_at`;
+
+router.get('/business', read, ah(async (req, res) => {
+  const { rows: [b] } = await query(`SELECT ${BUSINESS_COLS} FROM business_settings WHERE tenant_id = $1`, [req.user.tenantId]);
+  res.json({ business: b || null });
+}));
+
+router.put('/business', write, ah(async (req, res) => {
+  const patch = parse(businessSchema, req.body);
+  if (patch.staff_alert_phones) patch.staff_alert_phones = patch.staff_alert_phones.map((p) => p.replace(/^\+/, ''));
+  const { rows: [before] } = await query(`SELECT ${BUSINESS_COLS} FROM business_settings WHERE tenant_id = $1`, [req.user.tenantId]);
+  if (!before) return res.status(404).json({ error: 'Business settings missing' });
+  const fields = Object.keys(patch);
+  if (!fields.length) return res.json({ business: before });
+  const { rows: [after] } = await query(
+    `UPDATE business_settings SET ${fields.map((f, i) => `${f} = $${i + 2}`).join(', ')} WHERE tenant_id = $1 RETURNING ${BUSINESS_COLS}`,
+    [req.user.tenantId, ...fields.map((f) => (f === 'working_hours' ? JSON.stringify(patch[f]) : patch[f]))]);
+  await audit.fromReq(req, { action: 'business_settings.update', entityType: 'business_settings', entityId: after.id, before, after });
+  return res.json({ business: after });
+}));
+
 module.exports = router;

@@ -40,7 +40,12 @@ npm test -w frontend     # UI units
 | Milestone | State |
 |---|---|
 | Phase 0–2: discovery, plan, database | ✅ |
-| M0 scaffold + Docker Compose | ✅ (object storage arrives with the gallery, M5) |
+| M0 scaffold + Docker Compose | ✅ (photos live in Supabase Storage) |
 | M2 auth, roles, audit | ✅ API + login. Users/Audit screens are next (M2b). |
 | AI Agent + Tools screens | ✅ editable prompt with history, DeepSeek settings, editable tools |
-| M3 WhatsApp in/out | next |
+| M3 WhatsApp in/out | ✅ webhooks, sending, Postgres job queue (needs the real number + public URL to go live) |
+| M4 Inbox + handover | ✅ live inbox, take over / pause / resume, notes |
+| M5 Gallery, pricing, discounts, distance | ✅ zip import (821 photos, 377 sendable), Drive sync (needs `GDRIVE_API_KEY`), quote engine, Pricing & Rules |
+| M6 AI agent runtime | next |
+
+Gallery import from a Drive zip: `npm run gallery:import -- "D:\path	oolder.zip"` (safe to re-run).

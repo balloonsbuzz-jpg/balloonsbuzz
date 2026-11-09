@@ -12,7 +12,7 @@ FROM tenants t CROSS JOIN (VALUES
   ('cradle_ceremony', 'Cradle Ceremony',   ARRAY['naming ceremony','barasala','namkaran','cradle'], 40),
   ('anniversary',     'Anniversary',       ARRAY['wedding anniversary','romantic','couple surprise'], 50),
   ('wedding',         'Wedding',           ARRAY['marriage','engagement','reception','haldi','mehendi'], 60),
-  ('congratulations', 'Congratulations',   ARRAY['celebration','cheers','promotion','retirement'], 70),
+  ('congratulations', 'Congratulations',   ARRAY['celebration','celebrate','cheers','promotion','retirement'], 70),
   ('gender_reveal',   'Gender Reveal',     ARRAY['gender reveal party'], 80),
   ('bridal_shower',   'Bridal Shower',     ARRAY['bachelorette'], 90),
   ('surprise',        'Surprise',          ARRAY['car trunk surprise','room surprise'], 100),
@@ -66,7 +66,8 @@ FROM tenants t CROSS JOIN (VALUES
   ('powerpuff','Powerpuff Girls'), ('princess','Princess'), ('rabbit','Rabbit / Bunny'), ('roblox','Roblox'),
   ('spiderman','Spiderman'), ('tangled','Tangled (Rapunzel)'), ('teddy','Teddy Bear'), ('tom_jerry','Tom & Jerry'),
   ('transformers','Transformers'), ('underwater','Underwater / Ocean'), ('unicorn','Unicorn'),
-  ('winnie_pooh','Winnie the Pooh'), ('happy_birthday','Happy Birthday (classic)'), ('twins','Twins / Mixed')
+  ('winnie_pooh','Winnie the Pooh'), ('happy_birthday','Happy Birthday (classic)'), ('twins','Twins / Mixed'),
+  ('space','Space / Astronaut')
 ) AS th(key, name)
 WHERE t.slug = 'balloonsbuzz'
 ON CONFLICT (tenant_id, key) WHERE deleted_at IS NULL DO NOTHING;
@@ -122,6 +123,10 @@ JOIN (VALUES
   ('unicorn','unicorn'),
   ('winnie_pooh','winnie the pooh'),('winnie_pooh','pooh'),
   ('happy_birthday','happy birthday'),('happy_birthday','hbd'),
-  ('twins','twin birthday'),('twins','twins decor'),('twins','mixed theme'),('twins','mixed theme decor')
+  ('twins','twin birthday'),('twins','twins decor'),('twins','mixed theme'),('twins','mixed theme decor'),
+  -- names seen in the photo files (M5 import)
+  ('elephant','jumbo'),('elephant','jumboo'),('animal','jungle safari'),('animal','dog'),('animal','farm'),
+  ('cars','bikers'),('cars','bike'),('spiderman','spider'),('candy','cupcakes'),
+  ('space','space'),('space','astronaut'),('space','rocket')
 ) AS a(theme_key, alias) ON a.theme_key = th.key
 ON CONFLICT (tenant_id, alias) DO NOTHING;

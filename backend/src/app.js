@@ -18,6 +18,14 @@ function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
+  // Gallery photos when stored on local disk (tests / offline dev). WhatsApp fetches these
+  // publicly, as it would from Supabase Storage; file names are content hashes.
+  const galleryStorage = require('./gallery/storage');
+  if (galleryStorage.driverName() === 'local') {
+    app.use('/files/gallery', helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
+      express.static(galleryStorage.localDir(), { immutable: true, maxAge: '365d', index: false, dotfiles: 'deny' }));
+  }
+
   app.get('/api/health', async (req, res) => {
     try {
       await pool.query('SELECT 1');
@@ -34,6 +42,8 @@ function createApp() {
   app.use('/api/media', requireAuth, require('./routes/media.routes'));
   app.use('/api/conversations', requireAuth, require('./routes/conversations.routes'));
   app.use('/api/stream', requireAuth, require('./routes/stream.routes'));
+  app.use('/api/gallery', requireAuth, require('./routes/gallery.routes'));
+  app.use('/api/pricing', requireAuth, require('./routes/pricing.routes'));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

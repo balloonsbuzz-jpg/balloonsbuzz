@@ -32,6 +32,19 @@ const schema = z.object({
   META_GRAPH_BASE_URL: z.string().url().default('https://graph.facebook.com'),
   GRAPH_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
   PUBLIC_BASE_URL: z.string().url().optional(),               // public HTTPS origin Meta calls, e.g. https://wa.balloonsbuzz.com
+  // gallery photo storage: Supabase Storage (public bucket) or the local disk (dev/tests)
+  GALLERY_STORAGE: z.enum(['supabase', 'local']).optional(),   // default: supabase when its keys are set
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().regex(/^[a-z0-9-]{3,63}$/).default('gallery'),
+  GALLERY_LOCAL_DIR: z.string().optional(),
+  // Google Drive gallery sync (folder shared "anyone with the link" + an API key)
+  GDRIVE_API_KEY: z.string().min(20).optional(),
+  GDRIVE_FOLDER_ID: z.string().regex(/^[A-Za-z0-9_-]{10,}$/).default('1dWyYHT5_0aFBMXIpkCLVDv9OL6Mep-7q'),
+  GDRIVE_API_BASE: z.string().url().default('https://www.googleapis.com/drive/v3'),
+  GDRIVE_SYNC_INTERVAL_MIN: z.coerce.number().int().min(0).default(30),  // 0 = only the "Sync now" button
+  // road distance (optional; without it: straight line × road factor)
+  GOOGLE_MAPS_API_KEY: z.string().min(20).optional(),
   // worker
   WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(20).default(4),
   WORKER_POLL_MS: z.coerce.number().int().min(100).default(1000),
