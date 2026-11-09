@@ -69,13 +69,21 @@ async function handleInboundMessage(ev) {
       replyTo = r[0]?.id || null;
     }
 
-    const { rowCount } = await c.query(
+    // Keep the quoted message's wamid: if it arrives after this reply (out-of-order or
+    // parallel processing), it links the reply when it is stored (below).
+    const payload = m.context?.id && !replyTo ? { ...(n.payload || {}), context_id: m.context.id } : n.payload;
+    const { rows: inserted } = await c.query(
       `INSERT INTO messages (tenant_id, conversation_id, contact_id, direction, sender_type, message_type, body, payload,
                              media_id, wa_message_id, reply_to_message_id, status, sent_at, created_at)
        VALUES ($1,$2,$3,'inbound','customer',$4,$5,$6,$7,$8,$9,'received',$10,$10)
-       ON CONFLICT (tenant_id, wa_message_id) WHERE wa_message_id IS NOT NULL DO NOTHING`,
-      [route.tenantId, conv.id, contact.id, n.message_type, n.body, JSON.stringify(n.payload), mediaId, m.id, replyTo, sentAt]);
-    if (!rowCount) return null;   // already stored (replay)
+       ON CONFLICT (tenant_id, wa_message_id) WHERE wa_message_id IS NOT NULL DO NOTHING
+       RETURNING id`,
+      [route.tenantId, conv.id, contact.id, n.message_type, n.body, JSON.stringify(payload), mediaId, m.id, replyTo, sentAt]);
+    if (!inserted.length) return null;   // already stored (replay)
+    await c.query(
+      `UPDATE messages SET reply_to_message_id = $3
+        WHERE tenant_id = $1 AND conversation_id = $4 AND reply_to_message_id IS NULL AND payload->>'context_id' = $2`,
+      [route.tenantId, m.id, inserted[0].id, conv.id]);
 
     if (n.message_type !== 'reaction') {
       await c.query(

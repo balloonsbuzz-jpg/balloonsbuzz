@@ -106,10 +106,14 @@ describe('inbound messages', () => {
   test('location pins, button replies, photos and replies-to are normalised', async () => {
     const phone = '919876500003';
     const contacts = [{ profile: { name: 'Anu' }, wa_id: phone }];
+    // The reply (IMG1, quoting LOC1) is processed BEFORE the message it quotes: it still gets linked.
+    await postWebhook(envelope({ contacts, messages: [
+      { from: phone, id: 'wamid.IMG1', timestamp: ts(), type: 'image', image: { id: 'MEDIA123', mime_type: 'image/jpeg', sha256: 'abc', caption: 'like this' }, context: { id: 'wamid.LOC1' } },
+    ] }));
+    await drain();
     await postWebhook(envelope({ contacts, messages: [
       { from: phone, id: 'wamid.LOC1', timestamp: ts(), type: 'location', location: { latitude: 17.4948, longitude: 78.3563, name: 'Venue', address: 'Kondapur' } },
       { from: phone, id: 'wamid.BTN1', timestamp: ts(), type: 'interactive', interactive: { type: 'button_reply', button_reply: { id: 'pkg_ring', title: 'Ring frame' } } },
-      { from: phone, id: 'wamid.IMG1', timestamp: ts(), type: 'image', image: { id: 'MEDIA123', mime_type: 'image/jpeg', sha256: 'abc', caption: 'like this' }, context: { id: 'wamid.LOC1' } },
     ] }));
     await drain();
     const loc = await one(`SELECT message_type, payload FROM messages WHERE wa_message_id = 'wamid.LOC1'`);
