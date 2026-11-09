@@ -146,13 +146,14 @@ function Composer({ conv, act }) {
       ) : (
         <div className="flex items-end gap-2">
           <textarea
-            aria-label={note ? 'Internal note' : 'Message'}
+            aria-label={note ? 'Write an internal note' : 'Message'}
             rows={Math.min(6, Math.max(1, text.split('\n').length))}
             value={text}
             maxLength={4096}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder={note ? 'Internal note (only your team sees this)…' : 'Type a reply… ( / for quick replies, Shift+Enter for a new line)'}
+            placeholder={note ? 'Internal note (only your team sees it)…' : 'Type a reply…  ( / for quick replies)'}
+            title="Enter to send · Shift+Enter for a new line"
             className="max-h-40 min-h-10 flex-1 resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-3 focus:ring-ring/40"
           />
           <Button size="lg" onClick={send} disabled={!text.trim() || act.isPending} aria-label={note ? 'Save note' : 'Send'} className="h-10">
