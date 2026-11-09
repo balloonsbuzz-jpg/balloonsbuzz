@@ -2,6 +2,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const { Client } = require('pg');
+const { sslOptions } = require('../ssl');
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const ADMIN_URL = process.env.DATABASE_URL_TEST_ADMIN;
@@ -9,19 +10,19 @@ const ADMIN_URL = process.env.DATABASE_URL_TEST_ADMIN;
 async function createTestDb() {
   if (!ADMIN_URL) throw new Error('DATABASE_URL_TEST_ADMIN is not set (see .env.example)');
   const name = `bb_test_${crypto.randomBytes(4).toString('hex')}`;
-  const admin = new Client({ connectionString: ADMIN_URL });
+  const admin = new Client({ connectionString: ADMIN_URL, ssl: sslOptions() });
   await admin.connect();
   await admin.query(`CREATE DATABASE ${name}`);
   await admin.end();
 
   const url = new URL(ADMIN_URL);
   url.pathname = `/${name}`;
-  const client = new Client({ connectionString: url.toString() });
+  const client = new Client({ connectionString: url.toString(), ssl: sslOptions() });
   await client.connect();
 
   async function drop() {
     await client.end();
-    const a = new Client({ connectionString: ADMIN_URL });
+    const a = new Client({ connectionString: ADMIN_URL, ssl: sslOptions() });
     await a.connect();
     await a.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
     await a.end();

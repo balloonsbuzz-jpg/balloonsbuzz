@@ -83,6 +83,13 @@ test('hot-path indexes exist: phone, conversation status, created_at on high-vol
   ]) expect(names).toContain(idx);
 });
 
+test('every table has row-level security on (locks out Supabase Data API roles)', async () => {
+  const { rows } = await db.client.query(`
+    SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity`);
+  expect(rows).toEqual([]);
+});
+
 test('down all removes every table, and up rebuilds cleanly', async () => {
   await down(db.client, 'all', quiet);
   expect((await db.client.query(tablesQuery)).rows).toEqual([]);

@@ -2,8 +2,11 @@ const { Pool } = require('pg');
 const { env } = require('../config/env');
 const logger = require('../lib/logger');
 
+const { sslOptions } = require('../../../db/ssl');
+
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  ssl: sslOptions(),
   max: env.PGPOOL_MAX,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

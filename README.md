@@ -2,14 +2,13 @@
 
 A WhatsApp sales assistant and team inbox for [BalloonsBuzz](https://www.balloonsbuzz.com), the balloon decoration business in Miyapur, Hyderabad. It is built on the patterns of Whapter, with a React + Node/Express + PostgreSQL stack.
 
-Plan: [docs/PLAN.md](docs/PLAN.md) · Database: [db/README.md](db/README.md) · Gallery rules: [docs/gallery-catalog.md](docs/gallery-catalog.md)
+Plan: [docs/PLAN.md](docs/PLAN.md) · Database: [db/README.md](db/README.md) (hosted on Supabase; local Docker Postgres also works) · Gallery rules: [docs/gallery-catalog.md](docs/gallery-catalog.md)
 
 ## Run locally (development)
 
 ```bash
-cp .env.example .env                 # fill in passwords and keys (see comments)
+cp .env.example .env                 # paste your Supabase Session-pooler URI + PGSSL=true
 npm install
-npm run db:up                        # Postgres 15 + pgvector on 127.0.0.1:55432
 npm run migrate && npm run seed
 npm run create-owner -- --email you@example.com --name "Your Name"   # prints a generated password once
 npm run dev:api                      # API on :4000

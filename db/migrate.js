@@ -46,6 +46,8 @@ async function ensureTable(client) {
       checksum text NOT NULL,
       applied_at timestamptz NOT NULL DEFAULT now()
     )`);
+  // Hidden from Supabase's public Data API like every other table (owner bypasses RLS).
+  await client.query('ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY');
 }
 
 async function applied(client) {
@@ -121,7 +123,7 @@ async function main() {
   require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
   const [cmd = 'status', arg] = process.argv.slice(2);
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set (see .env.example)');
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: require('./ssl').sslOptions() });
   await client.connect();
   try {
     if (cmd === 'up') await up(client);

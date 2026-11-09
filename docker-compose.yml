@@ -1,0 +1,69 @@
+# Full stack (object storage for the gallery is added in M5). Only `web` publishes a port; everything else stays on the internal network,
+# so it never clashes with Whapter's containers on a shared host.
+#   docker compose up -d --build
+# Put HTTPS (Caddy/nginx on the host) in front of WEB_PORT for production; Meta webhooks require HTTPS.
+name: balloonsbuzz
+
+x-api-env: &api-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+  COOKIE_SECURE: ${COOKIE_SECURE:-true}
+  TRUST_PROXY: "true"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-balloonsbuzz}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 30
+
+  migrate:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    image: balloonsbuzz-api
+    environment: *api-env
+    command: ["sh", "-c", "node db/migrate.js up && node db/migrate.js seed"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    image: balloonsbuzz-api
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build: { context: ., dockerfile: frontend/Dockerfile }
+    restart: unless-stopped
+    ports: ["${WEB_PORT:-8080}:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:

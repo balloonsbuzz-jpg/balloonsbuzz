@@ -228,7 +228,7 @@ Business settings (base pin, road factor, slabs, discount caps, advance %, worki
 - `docker-compose.yml` with these services:
   - `postgres` (`pgvector/pgvector:pg15`, named volume)
   - `redis` (`redis:7-alpine`, AOF on)
-  - `minio` (volume; a public-read bucket policy only on `gallery/`)
+  - `minio` (volume; a public-read bucket policy only on `gallery/`). **Added in M5.** Docker Hub no longer serves `minio/minio` (checked 2026-11-08), so pick the image then: the one Whapter's server already runs, or an S3-compatible alternative.
   - `api`, `worker` (the same Node image, different command)
   - `web` (multi-stage build → nginx serving the SPA and proxying `/api` and `/webhook` to `api`)
 - Only `web` publishes a port. Postgres, Redis and MinIO stay on the internal network, so nothing clashes with Whapter's ports if they share a host.

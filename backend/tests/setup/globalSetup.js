@@ -11,14 +11,14 @@ module.exports = async () => {
   if (!adminUrl) throw new Error('DATABASE_URL_TEST_ADMIN is not set (see .env.example)');
 
   const name = `bb_api_test_${crypto.randomBytes(4).toString('hex')}`;
-  const admin = new Client({ connectionString: adminUrl });
+  const admin = new Client({ connectionString: adminUrl, ssl: require('../../../db/ssl').sslOptions() });
   await admin.connect();
   await admin.query(`CREATE DATABASE ${name}`);
   await admin.end();
 
   const url = new URL(adminUrl);
   url.pathname = `/${name}`;
-  const client = new Client({ connectionString: url.toString() });
+  const client = new Client({ connectionString: url.toString(), ssl: require('../../../db/ssl').sslOptions() });
   await client.connect();
   const { up, seed } = require('../../../db/migrate');
   await up(client, () => {});
