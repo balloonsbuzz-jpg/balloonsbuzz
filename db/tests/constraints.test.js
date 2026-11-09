@@ -227,7 +227,7 @@ describe('audit log', () => {
 describe('AI agent config & tools', () => {
   test('the agent defaults to DeepSeek with no key stored in the DB (env key is used)', async () => {
     const r = await one(c, `SELECT provider, model, api_key_enc FROM ai_agent_config`);
-    expect(r).toEqual({ provider: 'deepseek', model: 'deepseek-chat', api_key_enc: null });
+    expect(r).toEqual({ provider: 'deepseek', model: 'deepseek-flash', api_key_enc: null });
   });
 
   test('all 9 tools are seeded; safety tools are required and cannot be switched off', () => rollback(c, async () => {

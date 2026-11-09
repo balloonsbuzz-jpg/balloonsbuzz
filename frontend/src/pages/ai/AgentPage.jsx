@@ -28,7 +28,7 @@ const PROVIDERS = [
   ['deepseek', 'DeepSeek'], ['openai', 'OpenAI'], ['anthropic', 'Anthropic'], ['gemini', 'Google Gemini'],
   ['groq', 'Groq'], ['openrouter', 'OpenRouter'], ['custom', 'Custom (OpenAI-compatible)'],
 ];
-const MODEL_SUGGESTIONS = { deepseek: ['deepseek-chat', 'deepseek-reasoner'] };
+const MODEL_SUGGESTIONS = { deepseek: ['deepseek-flash', 'deepseek-v4-pro'] };
 
 const pick = (cfg) => Object.fromEntries(EDITABLE.map((k) => [k, cfg[k]]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);

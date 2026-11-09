@@ -29,8 +29,8 @@ INSERT INTO ai_agent_config (
   handover_message, out_of_hours_message, settings)
 SELECT t.id,
        'deepseek',
-       'deepseek-chat',
-       'deepseek-reasoner',
+       'deepseek-flash',
+       'deepseek-v4-pro',
        '{"input":0.27,"cached_input":0.07,"output":1.10,"currency":"USD"}'::jsonb,  -- same rates Whapter tracks; editable
        'PLACEHOLDER: replaced by prompts/balloonsbuzz-agent.md in Phase 4.',
        'Sure! Connecting you with our team now 😊 Someone will reply here shortly.',

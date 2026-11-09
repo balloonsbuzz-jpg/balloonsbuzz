@@ -1,0 +1,26 @@
+#!/bin/sh
+# Blocks commits that include env files or anything that looks like a secret.
+# Enabled with: git config core.hooksPath .githooks
+
+fail=0
+
+# 1) env files (only .env.example is allowed)
+bad_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$')
+if [ -n "$bad_files" ]; then
+  echo "BLOCKED: env files must never be committed:"; echo "$bad_files"; fail=1
+fi
+
+# 2) secret-looking values in added lines
+patterns='sk-[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9_-]{10,}|sb_publishable_[A-Za-z0-9_-]{10,}|eyJhbGciOi[A-Za-z0-9_.-]{20,}|postgres(ql)?://[^:/ ]+:[^@/ <]{6,}@|-----BEGIN [A-Z ]*PRIVATE KEY-----|EAA[A-Za-z0-9]{30,}'
+hits=$(git diff --cached -U0 --diff-filter=ACMR | grep -E '^\+' | grep -vE '^\+\+\+' | grep -nE "$patterns")
+if [ -n "$hits" ]; then
+  echo "BLOCKED: staged changes contain what looks like a secret (key, token, or DB password):"
+  echo "$hits" | sed -E 's/(sk-|sb_secret_|sb_publishable_|eyJhbGciOi)[A-Za-z0-9_.-]+/\1****/g; s#(://[^:]+:)[^@]+@#\1****@#g' | cut -c1-160
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "Move secrets to .env (git-ignored) and reference them via process.env."
+  exit 1
+fi
+exit 0
