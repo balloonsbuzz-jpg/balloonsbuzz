@@ -18,6 +18,8 @@ const DEMO_PHONE_PREFIX = '9190000000';
 const API = process.env.DEMO_API_URL || `http://localhost:${env.PORT}`;
 
 async function clear() {
+  // bookings protect their contact (ON DELETE RESTRICT): remove demo bookings first
+  await pool.query(`DELETE FROM bookings WHERE contact_id IN (SELECT id FROM contacts WHERE phone LIKE $1)`, [`${DEMO_PHONE_PREFIX}%`]);
   const c = await pool.query(`DELETE FROM contacts WHERE phone LIKE $1 RETURNING id`, [`${DEMO_PHONE_PREFIX}%`]);
   await pool.query(`DELETE FROM webhook_events WHERE phone_number_id = $1`, [DEMO_PNID]);
   const a = await pool.query(`DELETE FROM whatsapp_accounts WHERE phone_number_id = $1 RETURNING id`, [DEMO_PNID]);

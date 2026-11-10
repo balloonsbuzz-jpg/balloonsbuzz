@@ -1,5 +1,8 @@
+import { Link } from 'react-router-dom';
 import { formatDistanceToNow, format } from 'date-fns';
-import { X } from '@phosphor-icons/react';
+import { X, CalendarCheck } from '@phosphor-icons/react';
+import { inr } from '@/lib/money';
+import { STATUS_META, fmtDate } from '@/pages/bookings/useBookings';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversation, useConvAction, useTeam } from './useInbox';
 import { displayName, formatPhone, windowLeft } from './format';
@@ -50,11 +53,9 @@ export default function DetailsPanel({ id, onClose }) {
           <dt className="text-xs font-bold text-muted-foreground">Customer since</dt>
           <dd>{format(new Date(conv.contact_since), 'd MMM yyyy')} · via {conv.contact_source}</dd>
         </div>
-        <div>
-          <dt className="text-xs font-bold text-muted-foreground">Event details</dt>
-          <dd className="text-muted-foreground">Occasion, theme, date, venue, guests and budget appear here once the bot collects them (M6–M7).</dd>
-        </div>
       </dl>
+
+      <EventDetails lead={conv.lead} bookings={conv.bookings || []} />
 
       <h3 className="mb-2 mt-6 text-xs font-bold uppercase tracking-wide text-muted-foreground">Handover history</h3>
       {conv.handover_history.length === 0 ? <p className="text-sm text-muted-foreground">The bot has handled this chat so far.</p> : (
@@ -69,5 +70,45 @@ export default function DetailsPanel({ id, onClose }) {
         </ol>
       )}
     </aside>
+  );
+}
+
+const LEAD_LABEL = { new: 'New', qualifying: 'Qualifying', quoted: 'Quoted', negotiating: 'Negotiating', won: 'Booked', lost: 'Lost', stale: 'Gone quiet' };
+
+function EventDetails({ lead, bookings }) {
+  const rows = lead ? [
+    ['Occasion', lead.occasion_name],
+    ['Theme / design', lead.theme_name || lead.theme_text || lead.package_name],
+    ['Date', lead.event_date ? `${fmtDate(lead.event_date)}${lead.event_time ? `, ${String(lead.event_time).slice(0, 5)}` : ''}` : null],
+    ['Venue', lead.venue_address || (lead.distance_km != null ? `Pin, ${lead.distance_km} km` : null)],
+    ['Guests', lead.guest_count],
+    ['Budget', lead.budget_max != null ? `${inr(lead.budget_min ?? lead.budget_max)}–${inr(lead.budget_max)}` : null],
+    ['Price given', lead.latest_price != null ? inr(lead.latest_price) : null],
+  ] : [];
+  return (
+    <section className="mt-6">
+      <h3 className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Event {lead && <span className="rounded-full bg-muted px-2 py-0.5 normal-case tracking-normal">{LEAD_LABEL[lead.status]}</span>}
+      </h3>
+      {!lead ? <p className="text-sm text-muted-foreground">The bot fills this in as the customer shares details.</p> : (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          {rows.map(([k, v]) => (
+            <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd className={v ? 'font-bold' : 'text-muted-foreground'}>{v || '—'}</dd></div>
+          ))}
+        </dl>
+      )}
+      {bookings.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {bookings.map((b) => (
+            <li key={b.id}>
+              <Link to={`/bookings?open=${b.id}`} className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm hover:bg-muted">
+                <CalendarCheck size={15} /> <b>{b.booking_code}</b> <span className="text-muted-foreground">{fmtDate(b.event_date, false)}</span>
+                <span className={`ml-auto rounded-full px-1.5 text-[10px] font-bold ${STATUS_META[b.status]?.tone}`}>{STATUS_META[b.status]?.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

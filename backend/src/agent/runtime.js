@@ -170,6 +170,8 @@ async function runTurn({ tenantId, conversationId, triggerMessageId = null, sand
 
       const text = stripInternal(res.message.content);
       if (!text) {
+        // Fine when a tool already sent something this turn (photos, the location button).
+        if (ctx.sentByTools) { finalText = null; break; }
         // e.g. the model spent its token budget thinking. Never leave the customer without a reply.
         if (fixes < MAX_FIXES) {
           fixes += 1;

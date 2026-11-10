@@ -79,7 +79,18 @@ async function get(tenantId, id) {
     `SELECT h.from_mode, h.to_mode, h.trigger, h.reason, h.created_at, u.full_name AS actor_name
        FROM handover_events h LEFT JOIN users u ON u.id = h.actor_user_id
       WHERE h.conversation_id = $1 ORDER BY h.created_at DESC LIMIT 20`, [id]);
-  return { ...rows[0], handover_history: history };
+  // What we know about the event (the open lead, or the latest one) and this customer's bookings.
+  const [{ rows: [lead] }, { rows: bookings }] = await Promise.all([
+    query(`SELECT l.id, l.status, l.event_date, l.event_time, l.venue_address, l.distance_km, l.distance_charge, l.guest_count,
+                  l.budget_min, l.budget_max, l.theme_text, o.name AS occasion_name, t.name AS theme_name, p.name AS package_name,
+                  (SELECT q.id FROM quotes q WHERE q.lead_id = l.id AND q.status IN ('issued','negotiating','accepted') ORDER BY q.created_at DESC LIMIT 1) AS latest_quote_id,
+                  (SELECT q.final_price FROM quotes q WHERE q.lead_id = l.id AND q.status IN ('issued','negotiating','accepted') ORDER BY q.created_at DESC LIMIT 1) AS latest_price
+             FROM leads l LEFT JOIN occasions o ON o.id = l.occasion_id LEFT JOIN themes t ON t.id = l.theme_id LEFT JOIN packages p ON p.id = l.package_id
+            WHERE l.conversation_id = $1 AND l.deleted_at IS NULL ORDER BY (l.status NOT IN ('won','lost')) DESC, l.created_at DESC LIMIT 1`, [id]),
+    query(`SELECT id, booking_code, status, event_date, agreed_price, advance_status FROM bookings
+            WHERE contact_id = $1 AND deleted_at IS NULL ORDER BY event_date DESC LIMIT 5`, [rows[0].contact_id]),
+  ]);
+  return { ...rows[0], handover_history: history, lead: lead || null, bookings };
 }
 
 async function messages(tenantId, conversationId, { before, limit = 50 } = {}) {

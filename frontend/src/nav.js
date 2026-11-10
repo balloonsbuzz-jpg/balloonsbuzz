@@ -10,8 +10,8 @@ export const NAV_SECTIONS = [
   ] },
   { label: 'CONVERSATIONS', items: [
     { to: '/inbox', label: 'Inbox', icon: Tray, permission: 'inbox:read', badge: 'needs_human' },
-    { to: '/contacts', label: 'Contacts & Leads', icon: AddressBook, permission: 'contacts:read', milestone: 'M7' },
-    { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings:read', milestone: 'M7' },
+    { to: '/contacts', label: 'Contacts & Leads', icon: AddressBook, permission: 'leads:read' },
+    { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings:read' },
   ] },
   { label: 'CATALOGUE', items: [
     { to: '/gallery', label: 'Gallery', icon: Images, permission: 'gallery:read' },

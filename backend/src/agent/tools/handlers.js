@@ -11,11 +11,13 @@ const { enqueueMessage } = require('../../whatsapp/outbound.service');
 const { enqueue } = require('../../queue/jobs');
 const { checkPrices } = require('../guard');
 const leads = require('../leads');
+const bookings = require('../../bookings/bookings.service');
 
 const inr = (v) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`;
 
 /** Bot message from inside a tool (photos, location request). */
 async function sendFromTool(ctx, type, content, extra = {}) {
+  ctx.sentByTools = (ctx.sentByTools || 0) + 1;
   return enqueueMessage({
     tenantId: ctx.tenantId, conversationId: ctx.conversationId, type, content, senderType: 'bot',
     aiRunId: ctx.runId, delayMs: ctx.nextDelay(), ...extra,
@@ -219,12 +221,57 @@ async function checkNegotiation(a, ctx) {
   };
 }
 
-// ── booking (full booking flow arrives in M7) ───────────────────
+// ── booking ─────────────────────────────────────────────────────
 async function createBooking(a, ctx) {
-  const parts = [a.event_date && `date ${a.event_date}`, a.event_time, a.venue_address && `venue ${a.venue_address}`, a.guest_count && `${a.guest_count} guests`, a.special_requests]
-    .filter(Boolean).join(', ');
-  ctx.handover = { trigger: 'system', reason: 'Customer is ready to book', summary: `Ready to book${parts ? `: ${parts}` : ''}`, metadata: { quote_id: a.quote_id || null } };
-  return { status: 'handed_to_team', instruction: 'Tell the customer the team will confirm the booking and share the advance payment details here shortly.' };
+  const lead = await leads.get(ctx.conversationId);
+  const { rows: [q] } = a.quote_id
+    ? await query(`SELECT id, status FROM quotes WHERE id = $1 AND conversation_id = $2`, [a.quote_id, ctx.conversationId])
+    : await query(`SELECT id, status FROM quotes WHERE conversation_id = $1 AND status IN ('accepted','negotiating','issued')
+                    ORDER BY (status = 'accepted') DESC, created_at DESC LIMIT 1`, [ctx.conversationId]);
+  if (!q) return { error: 'No price agreed yet: call get_pricing first.' };
+  const eventDate = a.event_date || lead?.event_date;
+  const venue = a.venue_address || lead?.venue_address || (lead?.venue_lat != null ? `Location pin (${Number(lead.venue_lat).toFixed(5)}, ${Number(lead.venue_lng).toFixed(5)})` : null);
+  const missing = [!eventDate && 'event date', !venue && 'venue address'].filter(Boolean);
+  if (missing.length) return { error: `Ask for the ${missing.join(' and ')} first.` };
+
+  const lt = await bookings.leadTimeOk(ctx.tenantId, eventDate, a.event_time || lead?.event_time);
+  if (!lt.ok) {
+    ctx.handover = { trigger: 'date_unavailable', reason: `Event on ${eventDate} is less than ${lt.hours} hours away`, metadata: { event_date: eventDate } };
+    return { error: 'Too soon to book automatically: the team will check if it is possible.' };
+  }
+  try {
+    const r = await bookings.createFromQuote({
+      tenantId: ctx.tenantId, quoteId: q.id, eventDate, eventTime: a.event_time || lead?.event_time || null, venueAddress: venue,
+      guestCount: a.guest_count || lead?.guest_count || null, specialRequests: a.special_requests || null, createdBy: { type: 'bot' },
+    });
+    const b = r.booking;
+    const travelPending = Number(b.distance_charge) === 0 && lead?.distance_km == null;
+    // tell the team in the chat
+    await query(
+      `INSERT INTO messages (tenant_id, conversation_id, contact_id, direction, sender_type, message_type, body, status, is_internal_note, ai_run_id)
+       SELECT $1, id, contact_id, 'outbound', 'system', 'text', $3, 'sent', true, $4 FROM conversations WHERE id = $2`,
+      [ctx.tenantId, ctx.conversationId, `📅 Booking ${b.booking_code} created by the bot: ${b.event_date}, ${inr(b.agreed_price)}, advance ${inr(b.advance_amount)} pending${travelPending ? '\n⚠️ Travel charge not included (no venue pin): confirm it with the customer.' : ''}`, ctx.runId]);
+    return {
+      booking_code: b.booking_code,
+      event_date: b.event_date,
+      agreed_price: Number(b.agreed_price),
+      advance_amount: Number(b.advance_amount),
+      balance_amount: Number(b.agreed_price) - Number(b.advance_amount),
+      pay_to: r.upi ? { upi_id: r.upi.vpa, name: r.upi.name } : null,
+      travel_charge: travelPending ? 'not included yet: the team confirms it' : Number(b.distance_charge),
+      instruction: Number(b.advance_amount) > 0
+        ? `Share the booking code, the advance (${inr(b.advance_amount)})${r.upi ? ` and the UPI ID ${r.upi.vpa}` : ''}. Ask them to send a payment screenshot; the team confirms once it arrives.${r.upi ? '' : ' The team will share payment details.'}`
+        : 'Share the booking code and say the team will share the payment details here shortly. The team is already notified: do not hand over.',
+    };
+  } catch (err) {
+    if (err.details?.code === 'capacity') {
+      ctx.handover = { trigger: 'date_unavailable', reason: `${eventDate} is fully booked (${err.details.count}/${err.details.max})`, metadata: { event_date: eventDate } };
+      return { error: 'That date is fully booked. The team will check other options.' };
+    }
+    if (err.details?.code === 'already_booked') return { already_booked: err.details.booking_code };
+    if (err.status && err.status < 500) return { error: err.message };
+    throw err;
+  }
 }
 
 // ── handover ────────────────────────────────────────────────────

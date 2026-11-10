@@ -10,6 +10,8 @@ import SettingsPage from '@/pages/settings/SettingsPage';
 import InboxPage from '@/pages/inbox/InboxPage';
 import GalleryPage from '@/pages/gallery/GalleryPage';
 import PricingPage from '@/pages/pricing/PricingPage';
+import BookingsPage from '@/pages/bookings/BookingsPage';
+import LeadsPage from '@/pages/leads/LeadsPage';
 import { ALL_ITEMS } from '@/nav';
 
 function RequireAuth() {
@@ -49,6 +51,8 @@ export default function App() {
           <Route path="/ai/tools" element={<RequirePermission permission="agent:read"><ToolsPage /></RequirePermission>} />
           <Route path="/inbox" element={<RequirePermission permission="inbox:read"><InboxPage /></RequirePermission>} />
           <Route path="/inbox/:id" element={<RequirePermission permission="inbox:read"><InboxPage /></RequirePermission>} />
+          <Route path="/bookings" element={<RequirePermission permission="bookings:read"><BookingsPage /></RequirePermission>} />
+          <Route path="/contacts" element={<RequirePermission permission="leads:read"><LeadsPage /></RequirePermission>} />
           <Route path="/gallery" element={<RequirePermission permission="gallery:read"><GalleryPage /></RequirePermission>} />
           <Route path="/pricing" element={<RequirePermission permission="pricing:read"><PricingPage /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="settings:read"><SettingsPage /></RequirePermission>} />

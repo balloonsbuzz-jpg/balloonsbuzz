@@ -44,6 +44,8 @@ function createApp() {
   app.use('/api/stream', requireAuth, require('./routes/stream.routes'));
   app.use('/api/gallery', requireAuth, require('./routes/gallery.routes'));
   app.use('/api/pricing', requireAuth, require('./routes/pricing.routes'));
+  app.use('/api/bookings', requireAuth, require('./routes/bookings.routes'));
+  app.use('/api/leads', requireAuth, require('./routes/leads.routes'));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

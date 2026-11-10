@@ -309,6 +309,14 @@ describe('found in the live eval', () => {
     expect(ev.trigger).toBe('bot_stuck');
   });
 
+  test('no text after the location button is fine (no retry, no handover)', async () => {
+    llm.script(call('request_location', {}), say(''));
+    const s = await chat('semi arch, what is the total?');
+    expect(s.result.outcome).toBe('replied');
+    expect(llm.requests).toHaveLength(2);
+    expect(s.messages.filter((m) => m.direction === 'outbound' && !m.is_internal_note).map((m) => m.payload?.send_type)).toEqual(['location_request']);
+  });
+
   test('event dates are not shifted by the time zone', async () => {
     llm.script(call('update_lead', { event_date: '2026-12-14' }), say('Noted 14 Dec 📅'));
     const s = await chat('on 14th December');

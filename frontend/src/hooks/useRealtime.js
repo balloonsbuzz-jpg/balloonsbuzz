@@ -26,6 +26,11 @@ export function useRealtime(enabled) {
       if (d.conversation_id) qc.invalidateQueries({ queryKey: ['messages', d.conversation_id] });
     });
     es.addEventListener('conversation.updated', onMessage);
+    // Bookings changed (bot booked, payment recorded, status moved)
+    es.addEventListener('booking.updated', () => {
+      qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    });
     // Gallery import / Drive sync progress
     es.addEventListener('gallery.sync', () => {
       qc.invalidateQueries({ queryKey: ['gallery'] });

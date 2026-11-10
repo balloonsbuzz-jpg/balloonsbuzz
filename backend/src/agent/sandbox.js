@@ -95,7 +95,13 @@ async function customerSays(user, { text, location }) {
 }
 
 async function reset(user) {
-  await query(`DELETE FROM contacts WHERE tenant_id = $1 AND phone = $2 AND source = 'sandbox'`, [user.tenantId, sandboxPhone(user.id)]);
+  await withTx(async (c) => {
+    const { rows: [ct] } = await c.query(`SELECT id FROM contacts WHERE tenant_id = $1 AND phone = $2 AND source = 'sandbox'`, [user.tenantId, sandboxPhone(user.id)]);
+    if (!ct) return;
+    // test bookings protect the contact (ON DELETE RESTRICT): remove them first
+    await c.query(`DELETE FROM bookings WHERE contact_id = $1`, [ct.id]);
+    await c.query(`DELETE FROM contacts WHERE id = $1`, [ct.id]);
+  });
 }
 
 async function resume(user) {
