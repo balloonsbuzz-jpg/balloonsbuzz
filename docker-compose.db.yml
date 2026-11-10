@@ -1,5 +1,5 @@
 # Local database for development and tests only.
-# The full stack compose file (api, worker, web, redis, minio) arrives in M0/Phase 3.
+# Point DATABASE_URL at it (see .env.example). Production uses Supabase (docker-compose.yml).
 services:
   postgres:
     image: pgvector/pgvector:pg15

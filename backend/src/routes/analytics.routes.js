@@ -3,6 +3,7 @@ const express = require('express');
 const { z } = require('zod');
 const { ah, parse } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimits');
 const audit = require('../services/audit.service');
 const analytics = require('../analytics/analytics.service');
 
@@ -18,7 +19,7 @@ router.get('/analytics', requirePermission('analytics:read'), ah(async (req, res
   res.json(await analytics.report(req.user.tenantId, parse(rangeQuery, req.query)));
 }));
 
-router.get('/analytics/export', requirePermission('analytics:read'), ah(async (req, res) => {
+router.get('/analytics/export', requirePermission('analytics:read'), limits.export, ah(async (req, res) => {
   const q = parse(rangeQuery.extend({ kind: z.enum(['daily', 'bookings']).default('daily') }), req.query);
   const out = await analytics.exportCsv(req.user.tenantId, q.kind, q);
   await audit.fromReq(req, { action: 'analytics.export', entityType: 'analytics', after: { kind: q.kind, from: out.range.from, to: out.range.to, rows: out.rows } });

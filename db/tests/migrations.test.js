@@ -65,7 +65,8 @@ test('every business table except tenants and join tables is tenant-scoped', asy
   const { rows } = await db.client.query(`
     SELECT t.table_name FROM information_schema.tables t
     WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
-      AND t.table_name NOT IN ('schema_migrations', 'tenants')
+      -- worker_heartbeats: one worker serves every tenant (system table, like schema_migrations)
+      AND t.table_name NOT IN ('schema_migrations', 'tenants', 'worker_heartbeats')
       AND NOT EXISTS (SELECT 1 FROM information_schema.columns c
                       WHERE c.table_name = t.table_name AND c.column_name = 'tenant_id')`);
   expect(rows).toEqual([]);

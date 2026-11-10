@@ -10,7 +10,9 @@ const cookieMap = (res) => Object.fromEntries((res.headers['set-cookie'] || []).
 test('health reports the database', async () => {
   const res = await request(app).get('/api/health');
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ status: 'ok', db: 'ok' });
+  expect(res.body).toMatchObject({ status: 'ok', db: 'ok', queue: 'ok' });
+  expect(['ok', 'missing', 'stale']).toContain(res.body.worker); // the worker only fails the check in production
+  expect(res.headers['cache-control']).toBe('no-store');
 });
 
 test('wrong password and unknown email give the same generic error', async () => {

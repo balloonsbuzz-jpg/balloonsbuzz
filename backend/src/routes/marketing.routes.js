@@ -4,6 +4,7 @@ const { z } = require('zod');
 const { query } = require('../db/pool');
 const { ah, parse, badRequest, notFound } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimits');
 const audit = require('../services/audit.service');
 const templates = require('../templates/templates.service');
 const render = require('../templates/render');
@@ -24,13 +25,13 @@ router.get('/templates', can('templates:read'), ah(async (req, res) => {
   });
 }));
 
-router.post('/templates/sync', can('templates:write'), ah(async (req, res) => {
+router.post('/templates/sync', can('templates:write'), limits.heavyJob, ah(async (req, res) => {
   const r = await templates.sync(req.user.tenantId);
   await audit.fromReq(req, { action: 'templates.sync', entityType: 'templates', entityId: null, after: r });
   res.json({ ...r, templates: await templates.list(req.user.tenantId) });
 }));
 
-router.post('/templates/recommended/:name', can('templates:write'), ah(async (req, res) => {
+router.post('/templates/recommended/:name', can('templates:write'), limits.metaCall, ah(async (req, res) => {
   const name = parse(z.string().regex(/^[a-z0-9_]{1,100}$/), req.params.name);
   const t = await templates.submitRecommended(req.user.tenantId, name);
   await audit.fromReq(req, { action: 'templates.submit', entityType: 'template', entityId: t.id, after: { name } });
@@ -149,8 +150,8 @@ router.patch('/automations/:id', can('automations:write'), ah(async (req, res) =
   const id = parse(uuid, req.params.id);
   const b = parse(z.object({
     is_active: z.boolean().optional(),
-    trigger_config: z.record(z.union([z.number(), z.string()])).optional(),
-    action_config: z.record(z.string()).optional(),
+    trigger_config: z.record(z.string(), z.union([z.number(), z.string()])).optional(),
+    action_config: z.record(z.string(), z.string()).optional(),
   }).strict(), req.body);
   if (!Object.keys(b).length) throw badRequest('Nothing to change');
   const { before, after } = await automations.update(req.user.tenantId, id, b);
@@ -160,7 +161,7 @@ router.patch('/automations/:id', can('automations:write'), ah(async (req, res) =
   res.json({ automation: after });
 }));
 
-router.post('/automations/run', can('automations:write'), ah(async (req, res) => {
+router.post('/automations/run', can('automations:write'), limits.heavyJob, ah(async (req, res) => {
   res.json({ created: await automations.runDue({ tenantId: req.user.tenantId }) });
 }));
 

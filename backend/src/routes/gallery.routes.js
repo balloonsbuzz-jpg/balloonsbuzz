@@ -4,6 +4,7 @@ const { env } = require('../config/env');
 const { query } = require('../db/pool');
 const { ah, parse, conflict, notFound } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimits');
 const audit = require('../services/audit.service');
 const gallery = require('../gallery/gallery.service');
 const { driverName } = require('../gallery/storage');
@@ -98,7 +99,7 @@ router.get('/runs/:id', read, ah(async (req, res) => {
   res.json({ run });
 }));
 
-router.post('/sync', write, ah(async (req, res) => {
+router.post('/sync', write, limits.heavyJob, ah(async (req, res) => {
   if (!env.GDRIVE_API_KEY) throw conflict('Google Drive is not connected yet (GDRIVE_API_KEY). Use the zip import until then.');
   const job = await jobs.enqueue({
     tenantId: req.user.tenantId, name: 'gallery_sync', payload: { triggered_by: req.user.id },

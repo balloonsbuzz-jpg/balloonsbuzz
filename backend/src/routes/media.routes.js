@@ -8,6 +8,7 @@ const { ah, parse, notFound } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
 const { getForSending } = require('../whatsapp/account.service');
 const graph = require('../whatsapp/graph');
+const { mediaHeaders } = require('../whatsapp/media-headers');
 
 const router = express.Router();
 
@@ -24,10 +25,7 @@ router.get('/:id', requirePermission('inbox:read'), ah(async (req, res) => {
   const account = await getForSending(md.whatsapp_account_id);
   const info = await graph.mediaInfo(md.wa_media_id, account.token);
   const upstream = await graph.downloadMedia(info.url, account.token);
-  res.setHeader('Content-Type', md.mime_type || upstream.headers.get('content-type') || 'application/octet-stream');
-  res.setHeader('Cache-Control', 'private, max-age=3600');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (md.original_filename) res.setHeader('Content-Disposition', `inline; filename="${md.original_filename.replace(/["\r\n]/g, '')}"`);
+  res.set(mediaHeaders(md.mime_type || upstream.headers.get('content-type'), md.original_filename));
   Readable.fromWeb(upstream.body).pipe(res);
 }));
 

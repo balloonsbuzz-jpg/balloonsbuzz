@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const { ah, parse } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimits');
 const agentConfig = require('../services/agent-config.service');
 const aiTools = require('../services/ai-tools.service');
 
@@ -52,7 +53,7 @@ const sayBody = z.object({
   }).strict().optional(),
 }).strict().refine((b) => b.text || b.location, 'Type a message or share a location');
 
-router.post('/sandbox/messages', write, ah(async (req, res) => {
+router.post('/sandbox/messages', write, limits.aiTestChat, ah(async (req, res) => {
   const b = parse(sayBody, req.body);
   const result = await sandbox.customerSays(req.user, b);
   res.json({ result, ...(await sandbox.state(req.user)) });

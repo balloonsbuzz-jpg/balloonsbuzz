@@ -15,3 +15,8 @@ function shutdown(signal) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('unhandledRejection', (err) => logger.error('unhandled promise rejection', { error: err?.message, stack: err?.stack }));
+process.on('uncaughtException', (err) => {
+  logger.error('uncaught exception, exiting so Docker restarts the API', { error: err.message, stack: err.stack });
+  setTimeout(() => process.exit(1), 500).unref();
+});

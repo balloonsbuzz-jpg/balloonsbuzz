@@ -1,69 +1,67 @@
-# Full stack (object storage for the gallery is added in M5). Only `web` publishes a port; everything else stays on the internal network,
-# so it never clashes with Whapter's containers on a shared host.
-#   docker compose up -d --build
-# Put HTTPS (Caddy/nginx on the host) in front of WEB_PORT for production; Meta webhooks require HTTPS.
+# BalloonsBuzz production stack. The database and photo storage are Supabase (hosted), so
+# this runs only the app: migrate (one-shot), api, worker, web (nginx + dashboard), backup.
+#
+#   docker compose up -d --build          # first deploy / every update
+#   docker compose run --rm backup backup  # take a backup now
+#   docker compose run --rm backup drill   # restore drill (temporary database, dropped after)
+#
+# Every secret comes from .env (never from this file). Only `web` publishes a port, and only on
+# 127.0.0.1: the HTTPS proxy on the host (Caddy, see docs/DEPLOY.md) is the one public door.
+# For a database on this machine instead of Supabase, see docker-compose.db.yml.
 name: balloonsbuzz
 
-x-api-env: &api-env
-  NODE_ENV: production
-  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-  REDIS_URL: redis://redis:6379
-  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
-  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
-  COOKIE_SECURE: ${COOKIE_SECURE:-true}
-  TRUST_PROXY: "true"
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5", compress: "true" }   # log rotation: ≤ 50 MB per service
+
+x-app: &app
+  build: { context: ., dockerfile: backend/Dockerfile }
+  image: balloonsbuzz-api
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    # Caddy on the host -> nginx in `web` -> api = 2 proxies. Wrong values break per-IP rate limits.
+    TRUST_PROXY: ${TRUST_PROXY:-2}
+  logging: *logging
+  restart: unless-stopped
 
 services:
-  postgres:
-    image: pgvector/pgvector:pg15
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-balloonsbuzz}
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 3s
-      retries: 30
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes: [redisdata:/data]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 3s
-      retries: 30
-
   migrate:
-    build: { context: ., dockerfile: backend/Dockerfile }
-    image: balloonsbuzz-api
-    environment: *api-env
+    <<: *app
     command: ["sh", "-c", "node db/migrate.js up && node db/migrate.js seed"]
-    depends_on:
-      postgres: { condition: service_healthy }
     restart: "no"
 
   api:
-    build: { context: ., dockerfile: backend/Dockerfile }
-    image: balloonsbuzz-api
-    restart: unless-stopped
-    environment: *api-env
+    <<: *app
     depends_on:
       migrate: { condition: service_completed_successfully }
-      redis: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    command: ["node", "backend/src/worker.js"]
+    # the API image's healthcheck calls :4000, which the worker doesn't serve; the worker
+    # proves it is alive through /api/health (heartbeat) instead
+    healthcheck: { disable: true }
+    stop_grace_period: 45s    # let running jobs (sends, AI replies) finish on deploys
+    depends_on:
+      migrate: { condition: service_completed_successfully }
 
   web:
     build: { context: ., dockerfile: frontend/Dockerfile }
+    image: balloonsbuzz-web
     restart: unless-stopped
-    ports: ["${WEB_PORT:-8080}:80"]
+    ports: ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    logging: *logging
     depends_on:
       api: { condition: service_healthy }
 
-volumes:
-  pgdata:
-  redisdata:
+  backup:
+    build: { context: ., dockerfile: ops/backup/Dockerfile }
+    image: balloonsbuzz-backup
+    env_file: .env
+    environment:
+      TZ: UTC
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+    logging: *logging
+    restart: unless-stopped

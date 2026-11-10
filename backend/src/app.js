@@ -3,17 +3,19 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const { env } = require('./config/env');
 const logger = require('./lib/logger');
-const { pool } = require('./db/pool');
+const health = require('./services/health.service');
 const { requireAuth, csrfGuard } = require('./middleware/auth');
+const { apiLimiter, webhookLimiter } = require('./middleware/rateLimits');
 
-function createApp() {
+/** @param {{apiPerMin?: number}} [opts]  apiPerMin: override the per-IP API ceiling (tests) */
+function createApp(opts = {}) {
   const app = express();
   app.disable('x-powered-by');
-  if (env.TRUST_PROXY) app.set('trust proxy', 1);
+  app.set('trust proxy', env.TRUST_PROXY); // hop count; 0 = use the socket address
 
   app.use(helmet());
   // Meta webhook BEFORE the JSON parser: signature verification needs the raw bytes.
-  app.use('/webhook', require('./whatsapp/webhook.routes').router);
+  app.use('/webhook', webhookLimiter(), require('./whatsapp/webhook.routes').router);
   // The SPA is served from the same origin (nginx proxies /api), so no CORS is granted.
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
@@ -26,16 +28,13 @@ function createApp() {
       express.static(galleryStorage.localDir(), { immutable: true, maxAge: '365d', index: false, dotfiles: 'deny' }));
   }
 
+  // Uptime monitors call this; 503 when the database is down or (in production) the worker stopped.
   app.get('/api/health', async (req, res) => {
-    try {
-      await pool.query('SELECT 1');
-      res.json({ status: 'ok', db: 'ok' });
-    } catch {
-      res.status(503).json({ status: 'degraded', db: 'down' });
-    }
+    const { httpStatus, body } = await health.check();
+    res.set('Cache-Control', 'no-store').status(httpStatus).json(body);
   });
 
-  app.use('/api', csrfGuard);
+  app.use('/api', apiLimiter(opts.apiPerMin), csrfGuard);
   app.use('/api/auth', require('./routes/auth.routes'));
   app.use('/api/agent', requireAuth, require('./routes/agent.routes'));
   app.use('/api/settings', requireAuth, require('./routes/settings.routes'));

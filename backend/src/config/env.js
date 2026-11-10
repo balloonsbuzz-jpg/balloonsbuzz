@@ -17,7 +17,15 @@ const schema = z.object({
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 32 bytes hex (openssl rand -hex 32)').optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
   COOKIE_SECURE: bool.optional(),
-  TRUST_PROXY: bool.default('false'),
+  // How many reverse proxies sit in front of the API: false/0 = none, true/1 = nginx only,
+  // 2 = a host proxy (Caddy) + nginx. A wrong value makes every visitor share one IP for rate limits.
+  TRUST_PROXY: z.string().regex(/^(true|false|[0-5])$/, 'Use false, true or a hop count 0-5').default('false')
+    .transform((v) => (v === 'true' ? 1 : v === 'false' ? 0 : Number(v))),
+  // Per-IP request ceilings per minute. Generous: they stop floods and runaway scripts, not people.
+  RATE_LIMIT_API_PER_MIN: z.coerce.number().int().min(10).default(600),
+  RATE_LIMIT_WEBHOOK_PER_MIN: z.coerce.number().int().min(60).default(3000),
+  // A worker that has not checked in for this long makes /api/health report 503.
+  WORKER_STALE_AFTER_SEC: z.coerce.number().int().min(60).default(300),
   DEFAULT_TENANT_SLUG: z.string().default('balloonsbuzz'),
   DEEPSEEK_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
@@ -52,6 +60,18 @@ const schema = z.object({
   WORKER_POLL_MS: z.coerce.number().int().min(100).default(1000),
 });
 
+/** Settings that are fine on a laptop but unsafe on the internet. */
+function productionProblems(env) {
+  const out = [];
+  if (!env.ENCRYPTION_KEY) out.push('ENCRYPTION_KEY is required in production');
+  if (!env.COOKIE_SECURE) out.push('COOKIE_SECURE must be true in production (sign-in cookies only over HTTPS)');
+  if (!env.FRONTEND_URL.startsWith('https://')) out.push('FRONTEND_URL must be the https:// address of the dashboard');
+  if (env.PUBLIC_BASE_URL && !env.PUBLIC_BASE_URL.startsWith('https://')) out.push('PUBLIC_BASE_URL must start with https:// (Meta only calls HTTPS webhooks)');
+  if (/change-?me|example|placeholder|secret123/i.test(env.JWT_SECRET)) out.push('JWT_SECRET looks like a placeholder: generate one with  openssl rand -hex 48');
+  if (env.GALLERY_STORAGE === 'local') out.push('GALLERY_STORAGE=local is for development only; use Supabase Storage in production');
+  return out;
+}
+
 function load(source = process.env) {
   const parsed = schema.safeParse(source);
   if (!parsed.success) {
@@ -60,11 +80,12 @@ function load(source = process.env) {
   }
   const env = parsed.data;
   if (env.COOKIE_SECURE === undefined) env.COOKIE_SECURE = env.NODE_ENV === 'production';
-  if (env.NODE_ENV === 'production' && !env.ENCRYPTION_KEY) {
-    throw new Error('Invalid environment configuration:\n  - ENCRYPTION_KEY is required in production');
+  if (env.NODE_ENV === 'production') {
+    const problems = productionProblems(env);
+    if (problems.length) throw new Error(`Invalid environment configuration for production:\n${problems.map((x) => `  - ${x}`).join('\n')}`);
   }
   return Object.freeze(env);
 }
 
 const env = load();
-module.exports = { env, load };
+module.exports = { env, load, productionProblems };

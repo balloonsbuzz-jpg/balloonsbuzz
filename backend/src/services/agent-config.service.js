@@ -48,7 +48,7 @@ const patchSchema = z.object({
     input: z.number().min(0), cached_input: z.number().min(0), output: z.number().min(0),
     currency: z.enum(['USD', 'INR']),
   }).strict().optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 function keySource(row) {

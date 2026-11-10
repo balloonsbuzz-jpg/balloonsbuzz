@@ -225,6 +225,8 @@ Business settings (base pin, road factor, slabs, discount caps, advance %, worki
 
 ## 6. Deployment
 
+> **As built (M10):** the database and photos are on Supabase, so the stack is `migrate`, `api`, `worker`, `web` and `backup`; Redis and MinIO were dropped (the job queue lives in Postgres). The current guide is [DEPLOY.md](DEPLOY.md). The original plan follows for reference.
+
 - `docker-compose.yml` with these services:
   - `postgres` (`pgvector/pgvector:pg15`, named volume)
   - `redis` (`redis:7-alpine`, AOF on)

@@ -3,6 +3,7 @@ const { z } = require('zod');
 const { query } = require('../db/pool');
 const { ah, parse } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
+const { limits } = require('../middleware/rateLimits');
 const accounts = require('../whatsapp/account.service');
 const outbound = require('../whatsapp/outbound.service');
 const audit = require('../services/audit.service');
@@ -19,7 +20,7 @@ router.put('/whatsapp', write, ah(async (req, res) => {
   res.json({ account: await accounts.upsertPrimary(req, req.body) });
 }));
 
-router.post('/whatsapp/health', write, ah(async (req, res) => res.json(await accounts.healthCheck(req))));
+router.post('/whatsapp/health', write, limits.metaCall, ah(async (req, res) => res.json(await accounts.healthCheck(req))));
 
 router.get('/whatsapp/events', read, ah(async (req, res) => {
   const { rows } = await query(
@@ -38,7 +39,7 @@ const testSchema = z.object({
 }).strict();
 
 // Sends a test message from Settings (text inside the 24h window, or a template like hello_world).
-router.post('/whatsapp/test-message', write, ah(async (req, res) => {
+router.post('/whatsapp/test-message', write, limits.metaCall, ah(async (req, res) => {
   const b = parse(testSchema, req.body);
   const content = b.type === 'text'
     ? { text: b.text || 'Hello from BalloonsBuzz 🎈 (test message)' }
@@ -67,7 +68,7 @@ const businessSchema = z.object({
   advance_value: z.coerce.number().min(0).max(1_000_000).nullable(),
   min_lead_time_hours: z.coerce.number().int().min(0).max(24 * 60),
   max_bookings_per_day: z.coerce.number().int().min(1).max(100).nullable(),
-  working_hours: z.record(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']),
+  working_hours: z.partialRecord(z.enum(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']),
     z.array(z.tuple([z.string().regex(HHMM), z.string().regex(HHMM)])).max(3)),
   staff_alert_phones: z.array(z.string().regex(/^\+?\d{10,15}$/, 'Use a phone number like 919392534625')).max(10),
   upi_vpa: z.string().trim().regex(/^[\w.-]{2,256}@[a-zA-Z]{2,64}$/, 'Use a UPI id like balloonsbuzz@okhdfc').nullable(),

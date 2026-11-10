@@ -16,3 +16,6 @@ tmp/
 
 # local gallery photos (GALLERY_STORAGE=local)
 .data/
+
+# local backups (docker compose backup service)
+backups/

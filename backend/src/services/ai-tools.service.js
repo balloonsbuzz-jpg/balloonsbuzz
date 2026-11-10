@@ -16,7 +16,7 @@ async function list(tenantId) {
 const patchSchema = z.object({
   description: z.string().trim().min(10, 'Describe the tool in at least 10 characters').max(2000).optional(),
   is_enabled: z.boolean().optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 async function getForUpdate(c, tenantId, name) {
