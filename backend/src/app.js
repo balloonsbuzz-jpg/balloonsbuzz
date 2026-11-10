@@ -47,6 +47,7 @@ function createApp(opts = {}) {
   app.use('/api/leads', requireAuth, require('./routes/leads.routes'));
   app.use('/api', requireAuth, require('./routes/marketing.routes'));
   app.use('/api', requireAuth, require('./routes/analytics.routes'));
+  app.use('/api', requireAuth, require('./routes/admin.routes'));
 
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 

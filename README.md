@@ -43,7 +43,7 @@ npm test -w frontend     # UI units
 |---|---|
 | Phase 0–2: discovery, plan, database | ✅ |
 | M0 scaffold + Docker Compose | ✅ (photos live in Supabase Storage) |
-| M2 auth, roles, audit | ✅ API + login. Users/Audit screens are next (M2b). |
+| M2 auth, roles, audit | ✅ API + login |
 | AI Agent + Tools screens | ✅ editable prompt with history, DeepSeek settings, editable tools |
 | M3 WhatsApp in/out | ✅ webhooks, sending, Postgres job queue (needs the real number + public URL to go live) |
 | M4 Inbox + handover | ✅ live inbox, take over / pause / resume, notes |
@@ -53,6 +53,7 @@ npm test -w frontend     # UI units
 | M8 Templates, broadcasts, follow-ups | ✅ Meta template sync + recommended templates, broadcasts to tag/status segments (schedule, pause, retry, STOP opt-out), reminders and nudges once per booking/quote, team alerts |
 | M9 Dashboard and analytics | ✅ Dashboard (today: chats waiting, open enquiries, advance pending, next 7 days of events), Analytics with date range + previous-period deltas (funnel, bookings, money collected, reply times, handover rate, AI cost), daily and bookings CSV export (audited, no phone numbers) |
 | M10 Hardening and deploy | ✅ rate limits, worker heartbeat in `/api/health`, production config guard, CSP and security headers, safe serving of customer files, dependency fixes, log rotation, nightly encrypted backups + gallery mirror, restore drill passed, deploy guide + UAT checklist. Going live needs the server and domain |
-| M2b Users and audit screens | next |
+| M2b Users and audit screens | ✅ invite staff with one-time links (sent on WhatsApp, no email needed), edit roles, deactivate / remove / sign out everywhere, password reset links, change my password, custom roles with a permission checklist, Audit Log with filters and before/after changes. Safety rules: nobody locks themselves out, only owners manage owners, the last owner is protected |
+| Go-live | needs the client's server and domain, then [docs/DEPLOY.md](docs/DEPLOY.md) and [docs/UAT.md](docs/UAT.md) |
 
 Gallery import from a Drive zip: `npm run gallery:import -- "D:\path	oolder.zip"` (safe to re-run).

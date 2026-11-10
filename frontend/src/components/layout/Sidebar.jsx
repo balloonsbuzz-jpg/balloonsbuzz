@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { CaretDoubleLeft, CaretDoubleRight, SignOut, Moon, Sun, X } from '@phosphor-icons/react';
+import { useState } from 'react';
+import { CaretDoubleLeft, CaretDoubleRight, SignOut, Moon, Sun, X, Key } from '@phosphor-icons/react';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { NAV_SECTIONS } from '@/nav';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -10,6 +12,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
   const { user, can, logout } = useAuth();
   const { dark, toggle } = useTheme();
   const { data: counts } = useCounts();
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const sections = NAV_SECTIONS
     .map((s) => ({ ...s, items: s.items.filter((i) => can(i.permission)) }))
@@ -96,6 +99,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
           </div>
           <div className={cn('flex items-center gap-1', collapsed && 'lg:flex-col')}>
             <IconBtn label={dark ? 'Light mode' : 'Dark mode'} onClick={toggle}>{dark ? <Sun size={18} /> : <Moon size={18} />}</IconBtn>
+            <IconBtn label="Change password" onClick={() => setChangingPassword(true)}><Key size={18} /></IconBtn>
             <IconBtn label="Sign out" onClick={logout}><SignOut size={18} /></IconBtn>
             <IconBtn label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={onToggleCollapse} className="ml-auto hidden lg:flex">
               {collapsed ? <CaretDoubleRight size={18} /> : <CaretDoubleLeft size={18} />}
@@ -103,6 +107,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, drawerOpen, onClo
           </div>
         </div>
       </aside>
+      {changingPassword && <ChangePasswordDialog onClose={() => setChangingPassword(false)} />}
     </>
   );
 }

@@ -50,8 +50,10 @@ docker compose up -d --build          # migrate runs first, then api, worker, we
 docker compose ps                     # api/web "healthy", worker and backup "Up"
 docker compose exec api node backend/scripts/create-owner.js --email owner@balloonsbuzz.com --name "Owner Name"
 ```
-`create-owner` prints a generated password once: save it in a password manager. (Changing
-passwords and inviting staff come with the Users screen, M2b.)
+`create-owner` prints a generated password once: sign in and change it with the key icon at the
+bottom of the menu. Add staff from **Users & Roles → Add team member**: you get a one-time link
+(valid 72 hours) to send them on WhatsApp, and they choose their own password. No email setup
+is needed. A forgotten password works the same way: ⋮ → *Password reset link*.
 
 Production values in `.env` (the API refuses to start if the first four are unsafe):
 

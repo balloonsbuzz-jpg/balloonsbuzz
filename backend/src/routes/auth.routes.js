@@ -4,6 +4,7 @@ const { z } = require('zod');
 const { env } = require('../config/env');
 const auth = require('../services/auth.service');
 const audit = require('../services/audit.service');
+const users = require('../users/users.service');
 const { ah, parse } = require('../lib/errors');
 const { requireAuth, ACCESS_COOKIE, REFRESH_COOKIE } = require('../middleware/auth');
 
@@ -50,6 +51,29 @@ router.post('/logout', requireAuth, ah(async (req, res) => {
   await auth.logout(req.user.sessionId);
   clearAuthCookies(res);
   await audit.fromReq(req, { action: 'auth.logout', entityType: 'user', entityId: req.user.id });
+  res.json({ ok: true });
+}));
+
+// One-time links (invite / reset). Public, so rate-limited like sign-in.
+const linkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, limit: env.NODE_ENV === 'test' ? 1000 : 30,
+  standardHeaders: 'draft-7', legacyHeaders: false,
+  message: { error: 'Too many attempts. Try again in 15 minutes.' },
+});
+const tokenParam = z.string().regex(/^[A-Za-z0-9_-]{20,200}$/, 'Invalid link');
+
+router.get('/link/:token', linkLimiter, ah(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await users.checkLink(parse(tokenParam, req.params.token)));
+}));
+
+router.post('/link/:token', linkLimiter, ah(async (req, res) => {
+  const { password } = parse(z.object({ password: z.string().max(200) }), req.body);
+  res.json(await users.useLink(parse(tokenParam, req.params.token), password, req));
+}));
+
+router.post('/password', requireAuth, loginLimiter, ah(async (req, res) => {
+  await users.changeOwnPassword(req, parse(z.object({ current_password: z.string().min(1).max(200), new_password: z.string().max(200) }), req.body));
   res.json({ ok: true });
 }));
 

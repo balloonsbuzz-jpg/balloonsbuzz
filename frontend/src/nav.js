@@ -31,8 +31,8 @@ export const NAV_SECTIONS = [
     { to: '/analytics', label: 'Analytics', icon: ChartLineUp, permission: 'analytics:read' },
   ] },
   { label: 'ADMIN', items: [
-    { to: '/users', label: 'Users & Roles', icon: Users, permission: 'users:read', milestone: 'M2b' },
-    { to: '/audit', label: 'Audit Log', icon: ClipboardText, permission: 'audit:read', milestone: 'M2b' },
+    { to: '/users', label: 'Users & Roles', icon: Users, permission: 'users:read' },
+    { to: '/audit', label: 'Audit Log', icon: ClipboardText, permission: 'audit:read' },
     { to: '/settings', label: 'Settings', icon: GearSix, permission: 'settings:read' },
   ] },
 ];
