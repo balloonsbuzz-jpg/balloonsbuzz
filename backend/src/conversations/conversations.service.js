@@ -71,7 +71,7 @@ async function counts(tenantId, userId) {
 
 async function get(tenantId, id) {
   const { rows } = await query(
-    `SELECT ${LIST_COLS}, ct.email AS contact_email, ct.source AS contact_source, ct.created_at AS contact_since
+    `SELECT ${LIST_COLS}, ct.email AS contact_email, ct.source AS contact_source, ct.created_at AS contact_since, ct.opted_in AS contact_opted_in
        FROM conversations cv JOIN contacts ct ON ct.id = cv.contact_id LEFT JOIN users au ON au.id = cv.assigned_user_id
       WHERE cv.id = $1 AND cv.tenant_id = $2`, [id, tenantId]);
   if (!rows[0]) throw notFound('Conversation not found');

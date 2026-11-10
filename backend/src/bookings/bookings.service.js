@@ -176,35 +176,16 @@ async function board(tenantId) {
 
 /** Message the customer when the booking is confirmed: approved template, else text inside the 24h window. */
 async function sendConfirmation(tenantId, bookingId) {
-  const { rows: [b] } = await query(
-    `SELECT b.*, ct.name AS contact_name, p.name AS package_name, l.conversation_id,
-            (cv.last_inbound_at > now() - interval '24 hours') AS window_open, cv.whatsapp_account_id
-       FROM bookings b JOIN contacts ct ON ct.id = b.contact_id JOIN packages p ON p.id = b.package_id
-       LEFT JOIN leads l ON l.id = b.lead_id LEFT JOIN conversations cv ON cv.id = l.conversation_id
-      WHERE b.id = $1`, [bookingId]);
-  if (!b?.conversation_id) return { sent: false, reason: 'no conversation' };
-  const vars = {
-    'contact.name': b.contact_name || 'there', 'booking.code': b.booking_code, 'booking.event_date': b.event_date,
-    'booking.venue': b.venue_address, 'booking.design': b.package_name, 'booking.agreed_price': inr(b.agreed_price),
-    'booking.advance_paid': inr(b.advance_paid_amount), 'booking.balance': inr(Number(b.agreed_price) - Number(b.advance_paid_amount)),
-  };
-  const { rows: [tpl] } = b.whatsapp_account_id ? await query(
-    `SELECT name, language, variable_map FROM templates WHERE tenant_id = $1 AND whatsapp_account_id = $2 AND purpose = 'booking_confirmation' AND status = 'approved'
-      ORDER BY updated_at DESC LIMIT 1`, [tenantId, b.whatsapp_account_id]) : { rows: [] };
-  if (tpl) {
-    const keys = Object.keys(tpl.variable_map || {}).sort((x, y) => Number(x) - Number(y));
-    const params = keys.map((k) => ({ type: 'text', text: String(vars[tpl.variable_map[k]] ?? '') }));
-    const msg = await enqueueMessage({ tenantId, conversationId: b.conversation_id, type: 'template', senderType: 'system',
-      content: { name: tpl.name, language: tpl.language, components: params.length ? [{ type: 'body', parameters: params }] : [] } });
-    return { sent: true, via: 'template', template: tpl.name, message_id: msg.id };
-  }
-  if (b.window_open) {
-    const text = `🎉 Booking confirmed! ${b.booking_code}\n${b.package_name} on ${b.event_date}${b.event_time ? ` at ${String(b.event_time).slice(0, 5)}` : ''}\n`
-      + `Advance received: ${vars['booking.advance_paid']} · Balance: ${vars['booking.balance']}\nThank you for choosing BalloonsBuzz 🎈`;
-    const msg = await enqueueMessage({ tenantId, conversationId: b.conversation_id, type: 'text', content: { text }, senderType: 'system' });
-    return { sent: true, via: 'text', message_id: msg.id };
-  }
-  return { sent: false, reason: 'No approved "booking_confirmation" template and the 24-hour window is closed' };
+  // eslint-disable-next-line global-require
+  const { sendBookingMessage } = require('../automations/notify');
+  return sendBookingMessage({
+    bookingId, purpose: 'booking_confirmation',
+    text: (v, b) => `🎉 Booking confirmed! ${b.booking_code}
+${b.package_name} on ${v['booking.event_date']}${b.event_time ? ` at ${v['booking.event_time']}` : ''}
+`
+      + `Advance received: ${v['booking.advance_paid']} · Balance: ${v['booking.balance']}
+Thank you for choosing BalloonsBuzz 🎈`,
+  });
 }
 
 const ALLOWED = {

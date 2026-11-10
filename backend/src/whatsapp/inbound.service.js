@@ -96,9 +96,20 @@ async function handleInboundMessage(ev) {
     }
     await bus.publish({ tenantId: route.tenantId, type: 'message.new', conversation_id: conv.id, direction: 'inbound' }, c);
     await cancelFollowupsOnReply(conv.id, c);
-    return { conversationId: conv.id, messageId: inserted[0].id };
+    return { conversationId: conv.id, messageId: inserted[0].id, contactId: contact.id };
   });
   if (!stored) return;
+
+  // A reply within 72h of a broadcast counts as a broadcast reply.
+  await require('../broadcasts/broadcasts.service').noteReply(stored.contactId);
+
+  // STOP / START: marketing opt-out (WhatsApp policy). No AI reply to these.
+  if (n.message_type === 'text' && await handleOptOut(route.tenantId, stored, n.body)) return;
+
+  // The team's own alert phones: never answered by the bot.
+  const { rows: [staff] } = await query(
+    `SELECT 1 FROM business_settings WHERE tenant_id = $1 AND $2 = ANY(staff_alert_phones)`, [route.tenantId, phone]);
+  if (staff) return;
 
   let handedOver = false;
   if (['text', 'button', 'interactive'].includes(n.message_type)) {
@@ -109,6 +120,27 @@ async function handleInboundMessage(ev) {
   if (!handedOver && n.message_type !== 'reaction') {
     await scheduleAiReply({ tenantId: route.tenantId, conversationId: stored.conversationId, messageId: stored.messageId });
   }
+}
+
+const STOP_RE = /^\s*(stop|unsubscribe|stop all|opt ?out)\s*[.!]*\s*$/i;
+const START_RE = /^\s*(start|subscribe|opt ?in)\s*[.!]*\s*$/i;
+
+async function handleOptOut(tenantId, stored, text) {
+  const stop = STOP_RE.test(text || '');
+  const start = !stop && START_RE.test(text || '');
+  if (!stop && !start) return false;
+  const { enqueueMessage } = require('./outbound.service');
+  await withTx(async (c) => {
+    await c.query(
+      `UPDATE contacts SET opted_in = $2, opted_out_at = CASE WHEN $2 THEN NULL ELSE now() END WHERE id = $1`, [stored.contactId, start]);
+    await enqueueMessage({
+      tenantId, conversationId: stored.conversationId, type: 'text', senderType: 'system',
+      content: { text: stop
+        ? 'Done ✅ You won’t receive offers from BalloonsBuzz any more. You can still message us any time. Reply START to subscribe again.'
+        : 'Welcome back 🎈 You’ll get our offers again. Reply STOP any time to unsubscribe.' },
+    }, c);
+  });
+  return true;
 }
 
 /** Customer asked for a person (configured keywords): pause the bot, alert the team, tell the customer. */
@@ -134,7 +166,7 @@ async function handleStatus(ev, job) {
   if (!route) return 'ignored';
   const s = ev.payload.status;
   const at = s.timestamp ? new Date(Number(s.timestamp) * 1000) : new Date();
-  const { rows } = await query(`SELECT id, status, conversation_id FROM messages WHERE tenant_id = $1 AND wa_message_id = $2`, [route.tenantId, s.id]);
+  const { rows } = await query(`SELECT id, status, conversation_id, message_type FROM messages WHERE tenant_id = $1 AND wa_message_id = $2`, [route.tenantId, s.id]);
   const msg = rows[0];
   if (!msg) {
     // The send job may not have stored the wamid yet: retry a couple of times, then let it go
@@ -150,6 +182,7 @@ async function handleStatus(ev, job) {
       await query(`UPDATE messages SET status = 'failed', failed_at = $2, error_code = $3, error_message = $4 WHERE id = $1`,
         [msg.id, at, e.code != null ? String(e.code) : null, [e.title, e.error_data?.details].filter(Boolean).join(': ') || 'Delivery failed']);
       await bus.publish({ tenantId: route.tenantId, type: 'message.status', conversation_id: msg.conversation_id, message_id: msg.id, status: 'failed' });
+      if (msg.message_type === 'template') await require('../broadcasts/broadcasts.service').syncFromMessage(msg.id);
     }
     return 'processed';
   }
@@ -165,7 +198,10 @@ async function handleStatus(ev, job) {
         AND $4::int > CASE status WHEN 'queued' THEN 0 WHEN 'sending' THEN 1 WHEN 'sent' THEN 2
                                   WHEN 'delivered' THEN 3 WHEN 'read' THEN 4 ELSE -1 END`,
     [msg.id, s.status, at, rank]);
-  if (rowCount) await bus.publish({ tenantId: route.tenantId, type: 'message.status', conversation_id: msg.conversation_id, message_id: msg.id, status: s.status });
+  if (rowCount) {
+    await bus.publish({ tenantId: route.tenantId, type: 'message.status', conversation_id: msg.conversation_id, message_id: msg.id, status: s.status });
+    if (msg.message_type === 'template') await require('../broadcasts/broadcasts.service').syncFromMessage(msg.id);
+  }
   return 'processed';
 }
 

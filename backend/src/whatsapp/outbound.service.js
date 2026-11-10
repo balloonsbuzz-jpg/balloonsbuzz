@@ -117,6 +117,7 @@ async function sendMessageJob({ message_id: id }, job) {
     await query(`UPDATE messages SET status = 'failed', failed_at = now(), error_code = $2, error_message = $3 WHERE id = $1`,
       [id, err.code != null ? String(err.code) : null, String(err.message).slice(0, 1000)]);
     await bus.publish({ tenantId: m.tenant_id, type: 'message.status', conversation_id: m.conversation_id, message_id: id, status: 'failed' });
+    if (m.message_type === 'template') await require('../broadcasts/broadcasts.service').syncFromMessage(id).catch(() => {});
     throw new PermanentError(err.message);
   }
 
@@ -129,6 +130,7 @@ async function sendMessageJob({ message_id: id }, job) {
               wa_message_id = $2, sent_at = COALESCE(sent_at, now()), error_code = NULL, error_message = NULL
         WHERE id = $1`, [id, wamid]);
     await bus.publish({ tenantId: m.tenant_id, type: 'message.status', conversation_id: m.conversation_id, message_id: id, status: 'sent' });
+    if (m.message_type === 'template') await require('../broadcasts/broadcasts.service').syncFromMessage(id);
   } catch (err) {
     logger.error('message sent but status update failed', { messageId: id, wamid, error: err.message });
     throw new PermanentError(`Sent (wamid ${wamid}) but could not record it: ${err.message}`);

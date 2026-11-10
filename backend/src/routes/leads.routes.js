@@ -13,7 +13,7 @@ const write = requirePermission('leads:write');
 const uuid = z.string().uuid();
 
 const LEAD_SELECT = `
-  SELECT l.*, ct.name AS contact_name, ct.phone AS contact_phone, o.name AS occasion_name, t.name AS theme_name, p.name AS package_name,
+  SELECT l.*, ct.name AS contact_name, ct.phone AS contact_phone, ct.opted_in AS contact_opted_in, o.name AS occasion_name, t.name AS theme_name, p.name AS package_name,
          u.full_name AS assigned_user_name, cv.handling_mode,
          (SELECT q.final_price FROM quotes q WHERE q.lead_id = l.id AND q.status IN ('issued','negotiating','accepted') ORDER BY q.created_at DESC LIMIT 1) AS latest_price,
          (SELECT b.booking_code FROM bookings b WHERE b.lead_id = l.id AND b.status <> 'cancelled' ORDER BY b.created_at DESC LIMIT 1) AS booking_code

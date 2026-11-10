@@ -23,9 +23,9 @@ export const NAV_SECTIONS = [
     { to: '/ai/test', label: 'Test chat', icon: ChatsCircle, permission: 'agent:write' },
   ] },
   { label: 'MARKETING', items: [
-    { to: '/templates', label: 'Templates', icon: ChatTeardropText, permission: 'templates:read', milestone: 'M8' },
-    { to: '/broadcasts', label: 'Broadcasts', icon: Megaphone, permission: 'broadcasts:read', milestone: 'M8' },
-    { to: '/followups', label: 'Follow-ups', icon: ClockCountdown, permission: 'automations:read', milestone: 'M8' },
+    { to: '/templates', label: 'Templates', icon: ChatTeardropText, permission: 'templates:read' },
+    { to: '/broadcasts', label: 'Broadcasts', icon: Megaphone, permission: 'broadcasts:read' },
+    { to: '/followups', label: 'Follow-ups', icon: ClockCountdown, permission: 'automations:read' },
   ] },
   { label: 'INSIGHTS', items: [
     { to: '/analytics', label: 'Analytics', icon: ChartLineUp, permission: 'analytics:read', milestone: 'M9' },

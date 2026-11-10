@@ -29,4 +29,7 @@ module.exports = {
   gallery_sync: (...args) => require('../gallery/sync.job').gallerySyncJob(...args),
   ai_reply: (...args) => require('../agent/jobs').aiReplyJob(...args),
   send_followup: (...args) => require('../agent/jobs').sendFollowupJob(...args),
+  staff_alert: (...args) => require('../automations/automations.service').staffAlertJob(...args),
+  broadcast_start: (...args) => require('../broadcasts/broadcasts.service').startJob(...args),
+  broadcast_batch: (...args) => require('../broadcasts/broadcasts.service').batchJob(...args),
 };

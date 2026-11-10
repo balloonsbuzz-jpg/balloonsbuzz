@@ -59,6 +59,11 @@ async function switchMode(c, p) {
     before: { handling_mode: from }, after: { handling_mode: p.to, trigger: p.trigger, reason: p.reason || null },
   }, c);
 
+  // Needs a person (not an agent's own takeover): alert the team's phones (if switched on).
+  if (!toBot && !AGENT_TRIGGERS.has(p.trigger)) {
+    await enqueue({ tenantId: p.tenantId, name: 'staff_alert', payload: { conversation_id: conv.id, reason: p.reason || p.trigger },
+      uniqueKey: `staff_alert:${conv.id}:${Date.now()}`, maxAttempts: 2 }, c);
+  }
   if (p.resumeAt && !toBot) {
     await enqueue({ tenantId: p.tenantId, name: 'auto_resume', payload: { conversation_id: conv.id }, runAt: p.resumeAt,
       uniqueKey: `auto_resume:${conv.id}:${new Date(p.resumeAt).getTime()}` }, c);

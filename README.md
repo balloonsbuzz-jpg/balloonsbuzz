@@ -48,6 +48,7 @@ npm test -w frontend     # UI units
 | M5 Gallery, pricing, discounts, distance | ✅ zip import (821 photos, 377 sendable), Drive sync (needs `GDRIVE_API_KEY`), quote engine, Pricing & Rules |
 | M6 AI agent runtime | ✅ DeepSeek tool loop, outbound price guard, handover rules, test console (AI → Test chat), prompt in `prompts/balloonsbuzz-agent.md`; live eval in `docs/evals/` |
 | M7 Leads and bookings | ✅ bot books from chat (advance + UPI), Bookings board, payments → auto-confirm + confirmation message, capacity warnings, Contacts & Leads |
-| M8 Templates, broadcasts, follow-ups | next |
+| M8 Templates, broadcasts, follow-ups | ✅ Meta template sync + recommended templates, broadcasts to tag/status segments (schedule, pause, retry, STOP opt-out), reminders and nudges once per booking/quote, team alerts |
+| M9 Analytics | next |
 
 Gallery import from a Drive zip: `npm run gallery:import -- "D:\path	oolder.zip"` (safe to re-run).

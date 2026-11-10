@@ -31,6 +31,7 @@ export function useRealtime(enabled) {
       qc.invalidateQueries({ queryKey: ['bookings'] });
       qc.invalidateQueries({ queryKey: ['leads'] });
     });
+    es.addEventListener('broadcast.updated', () => qc.invalidateQueries({ queryKey: ['broadcasts'] }));
     // Gallery import / Drive sync progress
     es.addEventListener('gallery.sync', () => {
       qc.invalidateQueries({ queryKey: ['gallery'] });

@@ -16,6 +16,7 @@ import { useCatalog } from '@/hooks/useCatalog';
 import { inr } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { useBookingMutation, onBookingError, STATUS_META as BOOKING_STATUS, fmtDate } from '@/pages/bookings/useBookings';
+import TagsEditor from '@/components/TagsEditor';
 
 const TABS = [['open', 'Open'], ['won', 'Booked'], ['lost', 'Lost'], ['all', 'All']];
 const LEAD_STATUS = {
@@ -113,9 +114,14 @@ function LeadSheet({ id, onClose }) {
               <SheetDescription>+{l.contact_phone} · enquired {formatDistanceToNow(new Date(l.created_at), { addSuffix: true })}</SheetDescription>
             </SheetHeader>
             <div className="space-y-5 px-4 pb-6">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {l.conversation_id && <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/inbox/${l.conversation_id}`} />}><ChatCircle size={15} /> Open chat</Button>}
+                {l.contact_opted_in === false && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">Opted out of offers</span>}
               </div>
+              <section>
+                <h3 className="mb-1.5 text-sm font-extrabold">Tags</h3>
+                <TagsEditor contactId={l.contact_id} canWrite={can('contacts:write')} />
+              </section>
               {data.bookings.length > 0 && (
                 <section>
                   <h3 className="mb-2 text-sm font-extrabold">Bookings</h3>

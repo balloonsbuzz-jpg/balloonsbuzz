@@ -3,6 +3,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { X, CalendarCheck } from '@phosphor-icons/react';
 import { inr } from '@/lib/money';
 import { STATUS_META, fmtDate } from '@/pages/bookings/useBookings';
+import TagsEditor from '@/components/TagsEditor';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversation, useConvAction, useTeam } from './useInbox';
 import { displayName, formatPhone, windowLeft } from './format';
@@ -54,6 +55,12 @@ export default function DetailsPanel({ id, onClose }) {
           <dd>{format(new Date(conv.contact_since), 'd MMM yyyy')} · via {conv.contact_source}</dd>
         </div>
       </dl>
+
+      <section className="mt-4">
+        <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Tags</h3>
+        <TagsEditor contactId={conv.contact_id} canWrite={can('contacts:write')} />
+        {conv.contact_opted_in === false && <p className="mt-1.5 text-xs text-muted-foreground">Replied STOP: not included in broadcasts.</p>}
+      </section>
 
       <EventDetails lead={conv.lead} bookings={conv.bookings || []} />
 

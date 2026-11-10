@@ -199,8 +199,10 @@ describe('payments and confirmation', () => {
   test('marking the advance as received confirms the booking and sends the confirmation template', async () => {
     const { rows: [acc] } = await pool.query(`SELECT id FROM whatsapp_accounts WHERE tenant_id = $1 AND is_primary`, [tenantId]);
     await pool.query(
-      `INSERT INTO templates (tenant_id, whatsapp_account_id, name, language, category, status, purpose, variable_map)
-       VALUES ($1,$2,'booking_confirmed','en','UTILITY','approved','booking_confirmation','{"1":"contact.name","2":"booking.code","3":"booking.event_date","4":"booking.balance"}')
+      `INSERT INTO templates (tenant_id, whatsapp_account_id, name, language, category, status, purpose, components, variable_map)
+       VALUES ($1,$2,'booking_confirmed','en','UTILITY','approved','booking_confirmation',
+               '[{"type":"BODY","text":"Hi {{1}}, booking {{2}} on {{3}} is confirmed. Balance {{4}}."}]',
+               '{"1":"contact.name","2":"booking.code","3":"booking.event_date","4":"booking.balance"}')
        ON CONFLICT DO NOTHING`, [tenantId, acc.id]);
     const { quoteId, conversationId } = await whatsappQuote();
     const { body: { booking } } = await owner.post('/api/bookings', { quote_id: quoteId, event_date: FAR_DATE, venue_address: 'Nizampet' });
@@ -219,7 +221,7 @@ describe('payments and confirmation', () => {
     const sent = graph.requests.find((r) => r.body?.type === 'template');
     expect(sent.body.template).toMatchObject({ name: 'booking_confirmed', language: { code: 'en' } });
     const params = sent.body.template.components[0].parameters.map((p) => p.text);
-    expect(params).toEqual([expect.stringMatching(/Booker/), booking.booking_code, FAR_DATE, '₹7,000']);
+    expect(params).toEqual([expect.stringMatching(/Booker/), booking.booking_code, '20 Feb 2027', '₹7,000']);
     const msg = await one(`SELECT sender_type, message_type, status FROM messages WHERE conversation_id = $1 AND message_type = 'template'`, [conversationId]);
     expect(msg).toMatchObject({ sender_type: 'system', status: 'sent' });
   });
