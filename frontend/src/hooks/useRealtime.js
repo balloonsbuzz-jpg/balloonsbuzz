@@ -15,6 +15,7 @@ export function useRealtime(enabled) {
       const d = safeParse(e.data);
       qc.invalidateQueries({ queryKey: ['conversations'] });
       qc.invalidateQueries({ queryKey: ['conv-counts'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
       if (d.conversation_id) {
         qc.invalidateQueries({ queryKey: ['messages', d.conversation_id] });
         qc.invalidateQueries({ queryKey: ['conversation', d.conversation_id] });
@@ -30,6 +31,7 @@ export function useRealtime(enabled) {
     es.addEventListener('booking.updated', () => {
       qc.invalidateQueries({ queryKey: ['bookings'] });
       qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     });
     es.addEventListener('broadcast.updated', () => qc.invalidateQueries({ queryKey: ['broadcasts'] }));
     // Gallery import / Drive sync progress

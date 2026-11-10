@@ -15,6 +15,8 @@ import LeadsPage from '@/pages/leads/LeadsPage';
 import TemplatesPage from '@/pages/marketing/TemplatesPage';
 import BroadcastsPage from '@/pages/marketing/BroadcastsPage';
 import FollowupsPage from '@/pages/marketing/FollowupsPage';
+import DashboardPage from '@/pages/analytics/DashboardPage';
+import AnalyticsPage from '@/pages/analytics/AnalyticsPage';
 import { ALL_ITEMS } from '@/nav';
 
 function RequireAuth() {
@@ -49,6 +51,8 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<Home />} />
+          <Route path="/dashboard" element={<RequirePermission permission="dashboard:read"><DashboardPage /></RequirePermission>} />
+          <Route path="/analytics" element={<RequirePermission permission="analytics:read"><AnalyticsPage /></RequirePermission>} />
           <Route path="/ai/agent" element={<RequirePermission permission="agent:read"><AgentPage /></RequirePermission>} />
           <Route path="/ai/test" element={<RequirePermission permission="agent:write"><TestChatPage /></RequirePermission>} />
           <Route path="/ai/tools" element={<RequirePermission permission="agent:read"><ToolsPage /></RequirePermission>} />

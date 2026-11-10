@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
 import { MagnifyingGlass, Robot, User, Pause, HandWaving } from '@phosphor-icons/react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -25,7 +25,8 @@ export function ModeBadge({ mode, className }) {
 }
 
 export default function ConversationList({ activeId }) {
-  const [filter, setFilter] = useState('all');
+  const [params] = useSearchParams();
+  const [filter, setFilter] = useState(() => (FILTERS.some(([k]) => k === params.get('filter')) ? params.get('filter') : 'all'));
   const [input, setInput] = useState('');
   const [search, setSearch] = useState('');
   useEffect(() => { const t = setTimeout(() => setSearch(input.trim()), 300); return () => clearTimeout(t); }, [input]);

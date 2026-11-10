@@ -6,7 +6,7 @@ import {
 
 export const NAV_SECTIONS = [
   { label: 'OVERVIEW', items: [
-    { to: '/dashboard', label: 'Dashboard', icon: SquaresFour, permission: 'dashboard:read', milestone: 'M9' },
+    { to: '/dashboard', label: 'Dashboard', icon: SquaresFour, permission: 'dashboard:read' },
   ] },
   { label: 'CONVERSATIONS', items: [
     { to: '/inbox', label: 'Inbox', icon: Tray, permission: 'inbox:read', badge: 'needs_human' },
@@ -28,7 +28,7 @@ export const NAV_SECTIONS = [
     { to: '/followups', label: 'Follow-ups', icon: ClockCountdown, permission: 'automations:read' },
   ] },
   { label: 'INSIGHTS', items: [
-    { to: '/analytics', label: 'Analytics', icon: ChartLineUp, permission: 'analytics:read', milestone: 'M9' },
+    { to: '/analytics', label: 'Analytics', icon: ChartLineUp, permission: 'analytics:read' },
   ] },
   { label: 'ADMIN', items: [
     { to: '/users', label: 'Users & Roles', icon: Users, permission: 'users:read', milestone: 'M2b' },
