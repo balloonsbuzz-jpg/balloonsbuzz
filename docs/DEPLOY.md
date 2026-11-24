@@ -1,5 +1,7 @@
 # Deploying and running BalloonsBuzz
 
+> This guide is for one server with Docker. For app/api on Vercel see [VERCEL.md](VERCEL.md).
+
 This guide covers putting the platform on a server, connecting WhatsApp, monitoring, backups,
 updates and recovery. Everything secret lives in `.env` on the server; nothing secret goes in git.
 
@@ -87,7 +89,9 @@ after the test chat looks right.
 
 ## 6. Connecting WhatsApp (developers.facebook.com)
 
-No "allowed domains"/"safe origins" are needed: those are for Facebook Login. You need:
+The easiest way is the **Connect number** screen: it needs the Meta app settings in
+[VERCEL.md](VERCEL.md#4-meta-app-developersfacebookcom), including allowed domains. By hand, without
+the Facebook popup, you need:
 
 1. **Webhook** (WhatsApp → Configuration): callback URL `https://app.balloonsbuzz.com/webhook/whatsapp`,
    verify token = the `WHATSAPP_WEBHOOK_VERIFY_TOKEN` you put in `.env`. Press *Verify and save*,

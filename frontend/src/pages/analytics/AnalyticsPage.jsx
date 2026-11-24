@@ -4,7 +4,7 @@ import { DownloadSimple, Table as TableIcon, ChartBar } from '@phosphor-icons/re
 import { PageHeader } from '@/components/layout/AppLayout';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { api, errorMessage } from '@/lib/api';
+import { api, errorMessage, apiUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Stat, DailyColumns, Bars, Card, duration, rupees, percent, count } from './charts';
 
@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
   const setDay = (k, v) => { setPresetKey('custom'); setRange((r) => ({ ...r, [k]: v })); };
   const m = METRICS.find((x) => x.key === metric);
   const series = useMemo(() => (data?.daily || []).map((d) => ({ day: d.day, value: d[metric] })), [data, metric]);
-  const exportHref = (kind) => `/api/analytics/export?${new URLSearchParams({ kind, ...range })}`;
+  const exportHref = (kind) => `${apiUrl('/analytics/export')}?${new URLSearchParams({ kind, ...range })}`;
 
   return (
     <>

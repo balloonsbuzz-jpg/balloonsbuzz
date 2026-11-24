@@ -54,7 +54,7 @@ async function switchMode(c, p) {
       JSON.stringify({ ...(p.metadata || {}), ...(p.resumeAt ? { resume_at: p.resumeAt } : {}) })]);
 
   await audit.record({
-    tenantId: p.tenantId, actorType: p.actorUserId ? 'user' : (p.trigger === 'auto_resume' || p.trigger === 'system' ? 'system' : 'bot'),
+    tenantId: p.tenantId, actorType: p.actorUserId ? 'user' : (p.trigger === 'auto_resume' || p.trigger === 'system' || p.metadata?.via === 'whatsapp_app' ? 'system' : 'bot'),
     actorUserId: p.actorUserId || null, action: 'conversation.handover', entityType: 'conversation', entityId: conv.id,
     before: { handling_mode: from }, after: { handling_mode: p.to, trigger: p.trigger, reason: p.reason || null },
   }, c);

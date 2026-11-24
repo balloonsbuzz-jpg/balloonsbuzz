@@ -7,6 +7,7 @@ import AgentPage from '@/pages/ai/AgentPage';
 import TestChatPage from '@/pages/ai/TestChatPage';
 import ToolsPage from '@/pages/ai/ToolsPage';
 import SettingsPage from '@/pages/settings/SettingsPage';
+import ConnectNumberPage from '@/pages/settings/ConnectNumberPage';
 import InboxPage from '@/pages/inbox/InboxPage';
 import GalleryPage from '@/pages/gallery/GalleryPage';
 import PricingPage from '@/pages/pricing/PricingPage';
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/contacts" element={<RequirePermission permission="leads:read"><LeadsPage /></RequirePermission>} />
           <Route path="/gallery" element={<RequirePermission permission="gallery:read"><GalleryPage /></RequirePermission>} />
           <Route path="/pricing" element={<RequirePermission permission="pricing:read"><PricingPage /></RequirePermission>} />
+          <Route path="/connect" element={<RequirePermission permission="settings:read"><ConnectNumberPage /></RequirePermission>} />
           <Route path="/settings" element={<RequirePermission permission="settings:read"><SettingsPage /></RequirePermission>} />
           {ALL_ITEMS.filter((i) => i.milestone).map((i) => (
             <Route key={i.to} path={i.to} element={<RequirePermission permission={i.permission}><ComingSoon /></RequirePermission>} />

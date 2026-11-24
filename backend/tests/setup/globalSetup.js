@@ -35,6 +35,11 @@ module.exports = async () => {
     ENCRYPTION_KEY: crypto.randomBytes(32).toString('hex'),
     DEEPSEEK_API_KEY: 'sk-test-env-key-0000',
     // WhatsApp: point the Graph client at the per-test-file mock server
+    META_APP_ID: '123456789012',
+    META_SIGNUP_CONFIG_ID: '210987654321',
+    CRON_SECRET: 'test-cron-secret-123456',
+    FRONTEND_URL: 'https://app.balloonsbuzz.test',
+    CORS_ORIGINS: '',
     META_APP_SECRET: 'test-app-secret-123',
     WHATSAPP_WEBHOOK_VERIFY_TOKEN: 'test-verify-token-123',
     WHATSAPP_ACCESS_TOKEN: 'EAAtest-env-token',

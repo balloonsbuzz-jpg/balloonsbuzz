@@ -6,21 +6,31 @@ require('dotenv').config({ path: path.join(__dirname, '..', '..', '..', '.env') 
 
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 
+const isOrigin = (v) => { try { return new URL(v).origin === v; } catch { return false; } };
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().url(),
-  PGPOOL_MAX: z.coerce.number().int().positive().default(10),
+  PGPOOL_MAX: z.coerce.number().int().positive().optional(),   // default 10; 3 per serverless instance
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   ACCESS_TOKEN_TTL_MIN: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(14),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 32 bytes hex (openssl rand -hex 32)').optional(),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  // Extra dashboard origins allowed to call the API (comma-separated). FRONTEND_URL is always allowed.
+  CORS_ORIGINS: z.string().default('').transform((v) => v.split(',').map((x) => x.trim()).filter(Boolean))
+    .refine((list) => list.every(isOrigin), 'Use full origins separated by commas, e.g. https://app.balloonsbuzz.com'),
+  // LISTEN/NOTIFY needs a session connection: set this when DATABASE_URL is a transaction pooler (port 6543).
+  DATABASE_LISTEN_URL: z.string().url().optional(),
+  // Serverless (Vercel sets VERCEL=1): no always-on worker, see queue/inline.js.
+  VERCEL: z.string().optional(),
+  CRON_SECRET: z.string().min(16).optional(),                // protects /internal/cron (Authorization: Bearer ...)
   COOKIE_SECURE: bool.optional(),
   // How many reverse proxies sit in front of the API: false/0 = none, true/1 = nginx only,
   // 2 = a host proxy (Caddy) + nginx. A wrong value makes every visitor share one IP for rate limits.
-  TRUST_PROXY: z.string().regex(/^(true|false|[0-5])$/, 'Use false, true or a hop count 0-5').default('false')
-    .transform((v) => (v === 'true' ? 1 : v === 'false' ? 0 : Number(v))),
+  TRUST_PROXY: z.string().regex(/^(true|false|[0-5])$/, 'Use false, true or a hop count 0-5').optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true' ? 1 : v === 'false' ? 0 : Number(v))),
   // Per-IP request ceilings per minute. Generous: they stop floods and runaway scripts, not people.
   RATE_LIMIT_API_PER_MIN: z.coerce.number().int().min(10).default(600),
   RATE_LIMIT_WEBHOOK_PER_MIN: z.coerce.number().int().min(60).default(3000),
@@ -33,6 +43,8 @@ const schema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   // WhatsApp Cloud API (Meta)
+  META_APP_ID: z.string().regex(/^\d{6,25}$/).optional(),             // Embedded Signup (Connect number)
+  META_SIGNUP_CONFIG_ID: z.string().regex(/^\d{6,25}$/).optional(),   // its Facebook Login for Business configuration
   META_APP_SECRET: z.string().min(8).optional(),             // verifies X-Hub-Signature-256 on webhooks
   WHATSAPP_WEBHOOK_VERIFY_TOKEN: z.string().min(8).optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),              // fallback when no token saved in Settings
@@ -65,6 +77,7 @@ function productionProblems(env) {
   const out = [];
   if (!env.ENCRYPTION_KEY) out.push('ENCRYPTION_KEY is required in production');
   if (!env.COOKIE_SECURE) out.push('COOKIE_SECURE must be true in production (sign-in cookies only over HTTPS)');
+  if ((env.CORS_ORIGINS || []).some((o) => !o.startsWith('https://'))) out.push('CORS_ORIGINS must only list https:// origins');
   if (!env.FRONTEND_URL.startsWith('https://')) out.push('FRONTEND_URL must be the https:// address of the dashboard');
   if (env.PUBLIC_BASE_URL && !env.PUBLIC_BASE_URL.startsWith('https://')) out.push('PUBLIC_BASE_URL must start with https:// (Meta only calls HTTPS webhooks)');
   if (/change-?me|example|placeholder|secret123/i.test(env.JWT_SECRET)) out.push('JWT_SECRET looks like a placeholder: generate one with  openssl rand -hex 48');
@@ -73,12 +86,16 @@ function productionProblems(env) {
 }
 
 function load(source = process.env) {
-  const parsed = schema.safeParse(source);
+  // "KEY=" (left blank) means "not set", both in .env files and in hosting dashboards.
+  const parsed = schema.safeParse(Object.fromEntries(Object.entries(source).filter(([, v]) => v !== '')));
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   const env = parsed.data;
+  if (env.PGPOOL_MAX === undefined) env.PGPOOL_MAX = env.VERCEL ? 3 : 10;
+  if (env.TRUST_PROXY === undefined) env.TRUST_PROXY = env.VERCEL ? 1 : 0;   // Vercel's edge is one proxy
+  env.ALLOWED_ORIGINS = [...new Set([new URL(env.FRONTEND_URL).origin, ...env.CORS_ORIGINS])];
   if (env.COOKIE_SECURE === undefined) env.COOKIE_SECURE = env.NODE_ENV === 'production';
   if (env.NODE_ENV === 'production') {
     const problems = productionProblems(env);

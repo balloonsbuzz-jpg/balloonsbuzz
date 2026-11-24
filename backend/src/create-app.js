@@ -5,6 +5,8 @@ const { env } = require('./config/env');
 const logger = require('./lib/logger');
 const health = require('./services/health.service');
 const { requireAuth, csrfGuard } = require('./middleware/auth');
+const { cors } = require('./middleware/cors');
+const { drainAfterResponse } = require('./queue/inline');
 const { apiLimiter, webhookLimiter } = require('./middleware/rateLimits');
 
 /** @param {{apiPerMin?: number}} [opts]  apiPerMin: override the per-IP API ceiling (tests) */
@@ -13,10 +15,14 @@ function createApp(opts = {}) {
   app.disable('x-powered-by');
   app.set('trust proxy', env.TRUST_PROXY); // hop count; 0 = use the socket address
 
-  app.use(helmet());
+  // The dashboard (app.*) and the API (api.*) are different origins of the same site, so photos
+  // and voice notes must be embeddable from a sibling subdomain, but not from other sites.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
   // Meta webhook BEFORE the JSON parser: signature verification needs the raw bytes.
-  app.use('/webhook', webhookLimiter(), require('./whatsapp/webhook.routes').router);
-  // The SPA is served from the same origin (nginx proxies /api), so no CORS is granted.
+  app.use('/webhook', webhookLimiter(), drainAfterResponse, require('./whatsapp/webhook.routes').router);
+  app.use('/internal', require('./routes/internal.routes'));
+  // First on /api, so errors (401, 429, 500) stay readable by the dashboard.
+  app.use('/api', cors);
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
@@ -34,7 +40,7 @@ function createApp(opts = {}) {
     res.set('Cache-Control', 'no-store').status(httpStatus).json(body);
   });
 
-  app.use('/api', apiLimiter(opts.apiPerMin), csrfGuard);
+  app.use('/api', apiLimiter(opts.apiPerMin), csrfGuard, drainAfterResponse);
   app.use('/api/auth', require('./routes/auth.routes'));
   app.use('/api/agent', requireAuth, require('./routes/agent.routes'));
   app.use('/api/settings', requireAuth, require('./routes/settings.routes'));

@@ -26,8 +26,8 @@ const requirePermission = (permission) => (req, res, next) => {
 
 /**
  * CSRF defence for cookie auth: SameSite=Strict cookies plus a custom header on
- * every state-changing request. Browsers can't send custom headers cross-site
- * without a CORS preflight, which this API never grants.
+ * every state-changing request. Browsers can't send custom headers cross-origin
+ * without a CORS preflight, which only the dashboard's origins pass (middleware/cors.js).
  */
 function csrfGuard(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();

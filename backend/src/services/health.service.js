@@ -24,6 +24,8 @@ async function stopBeating() {
 /**
  * @returns {Promise<{httpStatus:number, body:object}>}
  * The worker only fails the check in production; in development and tests it is optional.
+ * On Vercel there is no worker process: "worker" then says whether /internal/cron is being
+ * called. Replies work without it, so it is reported but does not fail the check.
  */
 async function check() {
   const t0 = Date.now();
@@ -39,7 +41,7 @@ async function check() {
   const dbMs = Date.now() - t0;
   const worker = db === 'down' ? 'unknown' : row.worker_age == null ? 'missing' : row.worker_age > env.WORKER_STALE_AFTER_SEC ? 'stale' : 'ok';
   const queue = db === 'down' ? 'unknown' : row.backlog > 0 ? 'backlog' : 'ok';
-  const workerRequired = env.NODE_ENV === 'production';
+  const workerRequired = env.NODE_ENV === 'production' && !env.VERCEL;
   const healthy = db === 'ok' && (!workerRequired || worker === 'ok');
   return {
     httpStatus: healthy ? 200 : 503,

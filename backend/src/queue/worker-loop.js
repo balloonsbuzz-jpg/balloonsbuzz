@@ -72,6 +72,7 @@ function createWorker({ handlers, queues = ['default'], concurrency = 4, pollMs 
     },
     tick,
     drain,
+    running: () => running,
   };
 }
 

@@ -33,7 +33,7 @@ let retryMs = 1000;
 
 async function connect() {
   if (client || stopping) return;
-  const c = new Client({ connectionString: env.DATABASE_URL, ssl: sslOptions() });
+  const c = new Client({ connectionString: env.DATABASE_LISTEN_URL || env.DATABASE_URL, ssl: sslOptions() });
   c.on('notification', (msg) => {
     if (msg.channel !== CHANNEL) return;
     try { emitter.emit('event', JSON.parse(msg.payload)); } catch { /* ignore malformed */ }

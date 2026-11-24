@@ -1,0 +1,11 @@
+ALTER TABLE whatsapp_accounts
+  DROP COLUMN connection_type,
+  DROP COLUMN is_coexistence,
+  DROP COLUMN two_step_pin_enc,
+  DROP COLUMN setup_steps,
+  DROP COLUMN connected_at,
+  DROP COLUMN contacts_sync_status,
+  DROP COLUMN contacts_sync_request_id,
+  DROP COLUMN history_sync_status,
+  DROP COLUMN history_sync_request_id,
+  DROP COLUMN history_sync_progress;

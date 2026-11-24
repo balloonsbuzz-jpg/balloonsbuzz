@@ -1,6 +1,6 @@
 // M10: rate limits, health/heartbeat, production config guards.
 const { pool, request } = require('./helpers');
-const { createApp } = require('../src/app');
+const { createApp } = require('../src/create-app');
 const health = require('../src/services/health.service');
 const { load, productionProblems } = require('../src/config/env');
 

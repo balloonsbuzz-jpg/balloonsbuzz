@@ -30,7 +30,7 @@ router.get('/whatsapp', (req, res) => {
 });
 
 // POST: events. Raw body is required for the HMAC check.
-router.post('/whatsapp', express.raw({ type: '*/*', limit: '2mb' }), async (req, res) => {
+router.post('/whatsapp', express.raw({ type: '*/*', limit: '4mb' }), async (req, res) => {
   if (!env.META_APP_SECRET) {
     logger.error('META_APP_SECRET not set: refusing webhook (fail closed)');
     return res.sendStatus(503);

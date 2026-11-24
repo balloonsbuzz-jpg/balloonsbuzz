@@ -4,7 +4,8 @@ const crypto = require('crypto');
 
 /**
  * @returns {Array<{eventKey, eventType, phoneNumberId, data}>}
- *   eventType: 'message' | 'status' | 'template_status' | 'unknown'
+ *   eventType: 'message' | 'status' | 'template_status' | 'echo' | 'contacts_sync' | 'history' | 'unknown'
+ *   (echo, contacts_sync and history exist only for coexistence numbers)
  */
 function splitEvents(body, rawBody) {
   const events = [];
@@ -27,6 +28,14 @@ function splitEvents(body, rawBody) {
         if (!(v.messages || []).length && !(v.statuses || []).length) {
           events.push({ eventKey: `change:${sha(JSON.stringify(change))}`, eventType: 'unknown', phoneNumberId, data: change });
         }
+      } else if (change.field === 'smb_message_echoes') {
+        for (const e of v.message_echoes || []) {
+          if (e?.id) events.push({ eventKey: `echo:${e.id}`, eventType: 'echo', phoneNumberId, data: { echo: e, metadata: v.metadata } });
+        }
+      } else if (change.field === 'smb_app_state_sync') {
+        events.push({ eventKey: `contacts:${sha(JSON.stringify(change))}`, eventType: 'contacts_sync', phoneNumberId, data: v });
+      } else if (change.field === 'history') {
+        events.push({ eventKey: `history:${sha(JSON.stringify(change))}`, eventType: 'history', phoneNumberId, data: v });
       } else if (change.field === 'message_template_status_update') {
         events.push({ eventKey: `tpl:${v.message_template_id}:${v.event}:${entry.time || ''}`, eventType: 'template_status', phoneNumberId, data: v });
       } else {

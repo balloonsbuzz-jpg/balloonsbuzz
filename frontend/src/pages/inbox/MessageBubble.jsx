@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { Check, Checks, Clock, WarningCircle, Robot, MapPin, FileText, ArrowBendUpLeft, NotePencil } from '@phosphor-icons/react';
+import { apiUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 function Ticks({ status, error }) {
@@ -14,7 +15,7 @@ function Ticks({ status, error }) {
 }
 
 function Media({ m }) {
-  const src = `/api/media/${m.media_id}`;
+  const src = apiUrl(`/media/${m.media_id}`);
   if (m.message_type === 'image' || m.message_type === 'sticker') {
     return (
       <a href={src} target="_blank" rel="noreferrer">
@@ -48,6 +49,7 @@ function Content({ m }) {
   if ((m.message_type === 'interactive' || m.message_type === 'button') && m.direction === 'inbound') {
     return <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 font-bold text-primary">↩ {m.body}</span>;
   }
+  if (m.payload?.media_placeholder) return <p className="italic opacity-70">Photo or file from before connecting (on the phone only).</p>;
   if (m.message_type === 'unsupported') return <p className="italic opacity-70">This message type isn’t supported yet.</p>;
   return <p className="whitespace-pre-wrap break-words">{m.body}</p>;
 }
@@ -65,7 +67,7 @@ export default function MessageBubble({ m }) {
     );
   }
   const inbound = m.direction === 'inbound';
-  const who = inbound ? null : m.sender_type === 'bot' ? 'Bot' : m.sender_type === 'system' ? 'Auto' : m.sender_name || 'Team';
+  const who = inbound ? null : m.sender_type === 'bot' ? 'Bot' : m.sender_type === 'system' ? 'Auto' : m.sender_name || (m.payload?.via === 'whatsapp_app' ? 'Phone app' : 'Team');
   return (
     <div className={cn('flex', inbound ? 'justify-start' : 'justify-end')}>
       <div className={cn('max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm',

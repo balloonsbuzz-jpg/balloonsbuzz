@@ -5,6 +5,7 @@ const { ah, parse } = require('../lib/errors');
 const { requirePermission } = require('../middleware/auth');
 const { limits } = require('../middleware/rateLimits');
 const accounts = require('../whatsapp/account.service');
+const signup = require('../whatsapp/signup.service');
 const outbound = require('../whatsapp/outbound.service');
 const audit = require('../services/audit.service');
 
@@ -19,6 +20,12 @@ router.get('/whatsapp', read, ah(async (req, res) => {
 router.put('/whatsapp', write, ah(async (req, res) => {
   res.json({ account: await accounts.upsertPrimary(req, req.body) });
 }));
+
+// Connect number: Meta's Embedded Signup popup (new number or coexistence)
+router.get('/whatsapp/signup-config', read, (req, res) => res.json(signup.signupConfig()));
+router.post('/whatsapp/embedded-signup', write, limits.metaCall, ah(async (req, res) => res.json({ account: await signup.connect(req, req.body) })));
+router.post('/whatsapp/finish-setup', write, limits.metaCall, ah(async (req, res) => res.json({ account: await signup.finishSetup(req, req.body) })));
+router.delete('/whatsapp/connection', write, limits.metaCall, ah(async (req, res) => res.json({ account: await signup.disconnect(req) })));
 
 router.post('/whatsapp/health', write, limits.metaCall, ah(async (req, res) => res.json(await accounts.healthCheck(req))));
 

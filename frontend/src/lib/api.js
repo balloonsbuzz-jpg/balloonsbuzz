@@ -1,8 +1,14 @@
 import axios from 'axios';
 
-// Same-origin API; cookies are httpOnly. The custom header satisfies the CSRF guard.
+// Empty = same origin (dev proxy, nginx). On Vercel the API has its own host: vite.config.js sets it.
+const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
+/** Full address of an API path, for things axios doesn't load: photos, downloads, live updates. */
+export const apiUrl = (path) => `${API_ORIGIN}/api${path}`;
+
+// Cookies are httpOnly. The custom header satisfies the CSRF guard.
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiUrl(''),
   withCredentials: true,
   headers: { 'X-Requested-With': 'bb-web' },
   timeout: 20_000,
@@ -14,7 +20,7 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const { config, response } = error;
-    const isAuthCall = config?.url?.startsWith('/auth/');
+    const isAuthCall = config?.url?.startsWith('/auth/') && config.url !== '/auth/me';
     if (response?.status === 401 && config && !config._retried && !isAuthCall) {
       config._retried = true;
       refreshing = refreshing || api.post('/auth/refresh').finally(() => { refreshing = null; });

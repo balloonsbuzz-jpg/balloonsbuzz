@@ -1,5 +1,5 @@
 const request = require('supertest');
-const { createApp } = require('../src/app');
+const { createApp } = require('../src/create-app');
 const { pool } = require('../src/db/pool');
 const { hashPassword } = require('../src/services/auth.service');
 

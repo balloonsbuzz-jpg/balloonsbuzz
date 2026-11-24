@@ -5,10 +5,12 @@ const { normalizePhone } = require('../lib/phone');
 const { RetryableError } = require('../queue/jobs');
 const { normalizeInbound, previewOf } = require('./parse');
 const { routeByPhoneNumberId } = require('./account.service');
+const { handleEcho, handleContactsSync, handleHistory, clearAddressBookMark } = require('./coexistence.service');
 const bus = require('../realtime/bus');
 const { switchMode, matchesHandoverKeyword } = require('../conversations/handover.service');
 const { scheduleAiReply, cancelFollowupsOnReply } = require('../agent/jobs');
 
+const COEXISTENCE = { echo: handleEcho, contacts_sync: handleContactsSync, history: handleHistory };
 const STATUS_RANK = { queued: 0, sending: 1, sent: 2, delivered: 3, read: 4 };
 
 async function processWebhookEvent({ webhook_event_id: id }, job) {
@@ -20,7 +22,10 @@ async function processWebhookEvent({ webhook_event_id: id }, job) {
     let result = 'processed';
     if (ev.event_type === 'message') await handleInboundMessage(ev);
     else if (ev.event_type === 'status') result = await handleStatus(ev, job);
-    else result = 'ignored';
+    else if (COEXISTENCE[ev.event_type]) {
+      const route = await routeByPhoneNumberId(ev.phone_number_id);
+      result = route ? await COEXISTENCE[ev.event_type](ev, route) : 'ignored';
+    } else result = 'ignored';
     await query(`UPDATE webhook_events SET status = $2, processed_at = now(), error_message = NULL WHERE id = $1`, [id, result]);
   } catch (err) {
     await query(`UPDATE webhook_events SET status = 'failed', error_message = $2 WHERE id = $1`, [id, String(err.message).slice(0, 1000)]);
@@ -50,6 +55,7 @@ async function handleInboundMessage(ev) {
       [route.tenantId, phone, wa?.wa_id || m.from, wa?.profile?.name || null,
         n.payload.referral ? 'ad' : 'whatsapp', JSON.stringify(n.payload.referral ? { referral: n.payload.referral } : {}), sentAt]);
 
+    await clearAddressBookMark(c, contact.id);
     const { rows: [conv] } = await c.query(
       `INSERT INTO conversations (tenant_id, contact_id, whatsapp_account_id) VALUES ($1,$2,$3)
        ON CONFLICT (tenant_id, contact_id, whatsapp_account_id) DO UPDATE SET updated_at = now()

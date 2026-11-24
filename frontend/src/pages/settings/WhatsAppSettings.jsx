@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { CheckCircle, WarningCircle, Copy, PaperPlaneTilt, ArrowsClockwise, Plugs, Broadcast } from '@phosphor-icons/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { api, errorMessage } from '@/lib/api';
@@ -66,7 +67,7 @@ function ConnectionCard({ account, canWrite, envToken }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Plugs size={18} /> WhatsApp number</CardTitle>
-        <CardDescription>From Meta Business Manager → WhatsApp Manager → Phone numbers (or the app’s WhatsApp → API Setup page).</CardDescription>
+        <CardDescription><Link to="/connect" className={buttonVariants({ size: 'sm', className: 'mb-2 w-fit' })}>Connect with Facebook (recommended)</Link><br />Or enter the details by hand, from Meta Business Manager → WhatsApp Manager → Phone numbers (or the app’s WhatsApp → API Setup page).</CardDescription>
       </CardHeader>
       <CardContent>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
@@ -173,7 +174,7 @@ function WebhookCard({ webhook }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Broadcast size={18} /> Webhook (incoming messages)</CardTitle>
-        <CardDescription>In the Meta app: WhatsApp → Configuration → Webhook. Subscribe to the “messages” field.</CardDescription>
+        <CardDescription>Set automatically for a number connected with Facebook. By hand: Meta app → WhatsApp → Configuration → Webhook, field “messages”.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1">

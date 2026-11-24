@@ -1,7 +1,7 @@
 // Sidebar structure (Whapter-style sections). `milestone` marks screens not built yet.
 import {
   SquaresFour, Tray, AddressBook, CalendarCheck, Images, CurrencyInr, Robot, Wrench,
-  ChatTeardropText, ChatsCircle, Megaphone, ClockCountdown, ChartLineUp, Users, ClipboardText, GearSix,
+  ChatTeardropText, ChatsCircle, Megaphone, ClockCountdown, ChartLineUp, Users, ClipboardText, GearSix, WhatsappLogo,
 } from '@phosphor-icons/react';
 
 export const NAV_SECTIONS = [
@@ -33,6 +33,7 @@ export const NAV_SECTIONS = [
   { label: 'ADMIN', items: [
     { to: '/users', label: 'Users & Roles', icon: Users, permission: 'users:read' },
     { to: '/audit', label: 'Audit Log', icon: ClipboardText, permission: 'audit:read' },
+    { to: '/connect', label: 'Connect number', icon: WhatsappLogo, permission: 'settings:read' },
     { to: '/settings', label: 'Settings', icon: GearSix, permission: 'settings:read' },
   ] },
 ];

@@ -28,8 +28,8 @@ class GraphError extends Error {
 
 const graphUrl = (path) => `${env.META_GRAPH_BASE_URL.replace(/\/$/, '')}/${env.META_API_VERSION}/${path.replace(/^\//, '')}`;
 
-async function request(method, path, { token, body, query, timeoutMs = env.GRAPH_TIMEOUT_MS } = {}) {
-  if (!token) throw new GraphError('No WhatsApp access token configured', { status: 0, code: 190, retryable: false });
+async function request(method, path, { token, body, query, timeoutMs = env.GRAPH_TIMEOUT_MS, anonymous = false } = {}) {
+  if (!token && !anonymous) throw new GraphError('No WhatsApp access token configured', { status: 0, code: 190, retryable: false });
   const url = new URL(graphUrl(path));
   for (const [k, v] of Object.entries(query || {})) url.searchParams.set(k, v);
 
@@ -39,7 +39,7 @@ async function request(method, path, { token, body, query, timeoutMs = env.GRAPH
   try {
     res = await fetch(url, {
       method,
-      headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
       signal: ctrl.signal,
     });
@@ -75,7 +75,30 @@ module.exports = {
   markRead: (phoneNumberId, waMessageId, token) =>
     request('POST', `${phoneNumberId}/messages`, { token, body: { messaging_product: 'whatsapp', status: 'read', message_id: waMessageId } }),
   phoneNumberInfo: (phoneNumberId, token) =>
-    request('GET', phoneNumberId, { token, query: { fields: 'display_phone_number,verified_name,quality_rating,code_verification_status,name_status,messaging_limit_tier' } }),
+    request('GET', phoneNumberId, { token, query: { fields: 'display_phone_number,verified_name,quality_rating,code_verification_status,name_status,messaging_limit_tier,platform_type,status,is_on_biz_app' } }),
+
+  // ── Embedded Signup (signup.service.js) ──
+  /** One-time code from the Facebook popup -> the customer's business token. */
+  async exchangeCode(code) {
+    const r = await request('GET', 'oauth/access_token', { anonymous: true, query: { client_id: env.META_APP_ID, client_secret: env.META_APP_SECRET, code } });
+    if (!r?.access_token) throw new GraphError('Meta did not return an access token', { status: 502, retryable: false });
+    return r.access_token;
+  },
+  debugToken: (inputToken) => request('GET', 'debug_token', { token: `${env.META_APP_ID}|${env.META_APP_SECRET}`, query: { input_token: inputToken } }),
+  listPhoneNumbers: (wabaId, token) =>
+    request('GET', `${wabaId}/phone_numbers`, { token, query: { fields: 'id,display_phone_number,verified_name,platform_type,status,is_on_biz_app', limit: '100' } }),
+  subscribedApps: (wabaId, token) => request('GET', `${wabaId}/subscribed_apps`, { token }),
+  subscribeApp: (wabaId, token) => request('POST', `${wabaId}/subscribed_apps`, { token }),
+  unsubscribeApp: (wabaId, token) => request('DELETE', `${wabaId}/subscribed_apps`, { token }),
+  /** Send this one number's webhooks to `uri` instead of the app's default. */
+  setPhoneWebhook: (phoneNumberId, uri, verifyToken, token) =>
+    request('POST', phoneNumberId, { token, body: { webhook_configuration: { override_callback_uri: uri, verify_token: verifyToken } } }),
+  registerNumber: (phoneNumberId, pin, token) =>
+    request('POST', `${phoneNumberId}/register`, { token, body: { messaging_product: 'whatsapp', pin } }),
+  /** Coexistence imports: syncType 'smb_app_state_sync' (contacts) or 'history'. */
+  requestAppSync: (phoneNumberId, syncType, token) =>
+    request('POST', `${phoneNumberId}/smb_app_data`, { token, body: { messaging_product: 'whatsapp', sync_type: syncType } }),
+
   mediaInfo: (mediaId, token) => request('GET', mediaId, { token }),
   /** Downloads media bytes from the short-lived URL returned by mediaInfo (needs the token too). */
   async downloadMedia(url, token) {
