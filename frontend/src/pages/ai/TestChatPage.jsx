@@ -32,11 +32,10 @@ const OUTCOME = {
 };
 
 const FIELDS = [
+  ['event_date', 'Date', (l) => (l.event_date ? String(l.event_date).slice(0, 10) + (l.event_time ? ` ${l.event_time.slice(0, 5)}` : '') : null)],
   ['occasion', 'Occasion', (l) => l.occasion_name],
   ['theme', 'Theme / design', (l) => l.theme_name || l.theme_text || l.package_name],
-  ['event_date', 'Date', (l) => (l.event_date ? String(l.event_date).slice(0, 10) + (l.event_time ? ` ${l.event_time.slice(0, 5)}` : '') : null)],
   ['venue', 'Venue', (l) => l.venue_address || (l.venue_lat != null ? `Pin, ${l.distance_km} km` : null)],
-  ['guest_count', 'Guests', (l) => l.guest_count],
   ['budget', 'Budget', (l) => (l.budget_max != null ? `${inr(l.budget_min ?? l.budget_max)}–${inr(l.budget_max)}` : null)],
 ];
 

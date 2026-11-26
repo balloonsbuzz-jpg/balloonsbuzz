@@ -230,11 +230,11 @@ describe('AI agent config & tools', () => {
     expect(r).toEqual({ provider: 'deepseek', model: 'deepseek-flash', api_key_enc: null });
   });
 
-  test('all 9 tools are seeded; safety tools are required and cannot be switched off', () => rollback(c, async () => {
+  test('all 10 tools are seeded; safety tools are required and cannot be switched off', () => rollback(c, async () => {
     const tools = (await c.query(`SELECT name, is_required FROM ai_tools ORDER BY sort_order`)).rows;
     expect(tools.map((t) => t.name)).toEqual([
       'get_pricing', 'send_photos', 'calculate_distance_charge', 'check_negotiation_limit', 'create_booking',
-      'handover_to_human', 'request_location', 'update_lead', 'schedule_followup']);
+      'handover_to_human', 'request_location', 'update_lead', 'mark_lead_lost', 'schedule_followup']);
     expect(tools.filter((t) => t.is_required).map((t) => t.name).sort())
       .toEqual(['check_negotiation_limit', 'get_pricing', 'handover_to_human']);
     await expectPgError(sp(c, () => c.query(`UPDATE ai_tools SET is_enabled = false WHERE name = 'handover_to_human'`)), '23514');

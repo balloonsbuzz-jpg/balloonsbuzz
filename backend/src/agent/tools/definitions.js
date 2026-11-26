@@ -61,13 +61,13 @@ const TOOLS = {
   create_booking: {
     schema: z.object({
       quote_id: z.string().uuid().optional(), event_date: date.optional(), event_time: str(20).optional(),
-      venue_address: str(300).optional(), guest_count: z.coerce.number().int().min(1).max(10000).optional(), special_requests: str(500).optional(),
+      venue_address: str(300).optional(), special_requests: str(500).optional(),
     }),
     parameters: {
       type: 'object',
       properties: {
         quote_id: { type: 'string' }, event_date: { type: 'string', format: 'date' }, event_time: { type: 'string' },
-        venue_address: { type: 'string' }, guest_count: { type: 'integer' }, special_requests: { type: 'string' },
+        venue_address: { type: 'string' }, special_requests: { type: 'string' },
       },
     },
   },
@@ -86,15 +86,26 @@ const TOOLS = {
   update_lead: {
     schema: z.object({
       occasion: str(60).optional(), theme: str(100).optional(), event_date: date.optional(), event_time: str(20).optional(),
-      venue_address: str(300).optional(), guest_count: z.coerce.number().int().min(1).max(10000).optional(),
+      venue_address: str(300).optional(),
       budget_min: money.optional(), budget_max: money.optional(), notes: str(500).optional(),
     }),
     parameters: {
       type: 'object',
       properties: {
         occasion: { type: 'string' }, theme: { type: 'string' }, event_date: { type: 'string', format: 'date' }, event_time: { type: 'string' },
-        venue_address: { type: 'string' }, guest_count: { type: 'integer' }, budget_min: { type: 'number' }, budget_max: { type: 'number' }, notes: { type: 'string' },
+        venue_address: { type: 'string' }, budget_min: { type: 'number' }, budget_max: { type: 'number' }, notes: { type: 'string' },
       },
+    },
+  },
+  mark_lead_lost: {
+    schema: z.object({ reason: z.enum(['booked_elsewhere', 'not_interested']), details: str(300).optional() }),
+    parameters: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string', enum: ['booked_elsewhere', 'not_interested'], description: 'booked_elsewhere: got it done or booked somewhere else. not_interested: does not want it any more.' },
+        details: { type: 'string', description: 'What the customer said, in a few words' },
+      },
+      required: ['reason'],
     },
   },
   schedule_followup: {

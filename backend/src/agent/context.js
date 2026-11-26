@@ -145,14 +145,15 @@ async function contextBlock({ tenantId, conversationId, now = new Date() }) {
     '',
     '### What we know about the event',
     lead ? [
+      `- date: ${lead.event_date || '?'}${lead.event_time ? ` ${String(lead.event_time).slice(0, 5)}` : ''}`,
       `- occasion: ${lead.occasion_name || '?'}`,
       `- theme: ${lead.theme_name || lead.theme_text || '?'}`,
-      `- date: ${lead.event_date || '?'}${lead.event_time ? ` ${String(lead.event_time).slice(0, 5)}` : ''}`,
       `- venue: ${lead.venue_address || (lead.venue_lat != null ? `pin shared (${lead.distance_km} km away${lead.distance_charge != null ? `, travel ${inr(lead.distance_charge)}` : ''})` : '?')}`,
-      `- guests: ${lead.guest_count || '?'}`,
       `- budget: ${lead.budget_max != null ? range(lead.budget_min ?? lead.budget_max, lead.budget_max) : '?'}`,
     ].join('\n') : '- nothing yet',
-    missing.length ? `Still missing: ${missing.join(', ')}. Ask for at most one or two at a time.` : 'All six details collected.',
+    missing.length
+      ? `Still missing: ${missing.join(', ')}. ${missing[0] === 'event_date' ? 'Ask for the event date first. ' : ''}Ask for at most one or two at a time.`
+      : 'All details collected.',
     '',
     '### Quotes in this chat',
     quotes.rows.length

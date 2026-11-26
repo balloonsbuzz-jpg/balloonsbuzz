@@ -91,7 +91,7 @@ describe('create_booking from chat', () => {
     expect(s.result.outcome).toBe('replied');
 
     const b = await one(`SELECT * FROM bookings WHERE lead_id = (SELECT id FROM leads WHERE conversation_id = $1)`, [s.conversation.id]);
-    expect(b).toMatchObject({ status: 'advance_pending', advance_status: 'pending', event_date: FAR_DATE, venue_address: 'Flat 302, Kondapur', guest_count: 30, created_by_type: 'bot' });
+    expect(b).toMatchObject({ status: 'advance_pending', advance_status: 'pending', event_date: FAR_DATE, venue_address: 'Flat 302, Kondapur', guest_count: null, created_by_type: 'bot' });
     expect([Number(b.quoted_price), Number(b.agreed_price), Number(b.floor_price), Number(b.advance_amount)]).toEqual([10000, 9500, 9000, 2900]);  // 30% of 9500, up to ₹100
     const last = s.messages.filter((m) => m.direction === 'outbound' && !m.is_internal_note).at(-1).body;
     expect(last).toBe(`Booked! ${b.booking_code}. Advance ₹2,900 to balloonsbuzz@okhdfc 🙏`);

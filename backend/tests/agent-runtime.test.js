@@ -73,27 +73,98 @@ beforeEach(async () => {
   await owner.post('/api/agent/sandbox/reset', {});
 });
 
-describe('(a) qualifying the six details', () => {
-  test('saves occasion, theme, date, venue, guests and budget, and the prompt + context reach the model', async () => {
+describe('(a) qualifying the details', () => {
+  test('saves date, occasion, theme, venue and budget, and the prompt + context reach the model', async () => {
     llm.script(
-      call('update_lead', { occasion: 'birthday', theme: 'spidey', event_date: '2026-12-20', venue_address: 'Kondapur', guest_count: 40, budget_min: 8000, budget_max: 10000 }),
+      call('update_lead', { occasion: 'birthday', theme: 'spidey', event_date: '2026-12-20', venue_address: 'Kondapur', budget_min: 8000, budget_max: 10000 }),
       say('Lovely, a Spiderman 5th birthday! 🎉 I’ll share some designs now.'),
     );
     const s = await chat('Hi! Son’s 5th bday on 20 Dec, Spiderman theme, at Kondapur, ~40 guests, budget 8-10k');
     expect(s.result.outcome).toBe('replied');
-    expect(s.lead).toMatchObject({ occasion_name: 'Birthday', theme_name: 'Spiderman', guest_count: 40, venue_address: 'Kondapur', missing: [] });
+    expect(s.lead).toMatchObject({ occasion_name: 'Birthday', theme_name: 'Spiderman', guest_count: null, venue_address: 'Kondapur', missing: [] });
     expect(s.lead.qualified_at).not.toBeNull();
     expect([Number(s.lead.budget_min), Number(s.lead.budget_max)]).toEqual([8000, 10000]);
 
     const first = llm.requests[0].body;
     expect(first.messages[0].content).toMatch(/BalloonsBuzz WhatsApp assistant/);          // Phase 4 prompt file
-    expect(first.messages[1].content).toMatch(/Still missing: occasion, theme, event_date, venue, guest_count, budget/);
-    expect(first.tools.map((t) => t.function.name)).toEqual(expect.arrayContaining(['get_pricing', 'send_photos', 'update_lead', 'handover_to_human']));
+    expect(first.messages[1].content).toMatch(/Still missing: event_date, occasion, theme, venue, budget\. Ask for the event date first\./);
+    expect(first.messages[1].content).not.toMatch(/guest/);
+    expect(first.tools.map((t) => t.function.name)).toEqual(expect.arrayContaining(['get_pricing', 'send_photos', 'update_lead', 'handover_to_human', 'mark_lead_lost']));
+    expect(first.tools.find((t) => t.function.name === 'update_lead').function.parameters.properties).not.toHaveProperty('guest_count');
     expect(llm.requests[0].auth).toBe('Bearer sk-test-env-key-0000');
     // the second turn sees the saved details
     llm.script(say('Shall I send a few Spiderman designs?'));
     await chat('ok');
-    expect(llm.requests[2].body.messages[1].content).toMatch(/All six details collected/);
+    expect(llm.requests[2].body.messages[1].content).toMatch(/All details collected/);
+  });
+
+  test('photos and prices still go out without a date, with a reminder to ask for it', async () => {
+    llm.script(call('send_photos', { theme: 'zorbo', count: 1 }), say('Here is one! Which date is the party? 📅'));
+    await chat('zorbo designs please');
+    expect(toolResult(llm.requests[1].body, 'send_photos').ask_date).toMatch(/ask for it/);
+    llm.script(call('update_lead', { event_date: '2026-12-20' }), call('send_photos', { theme: 'zorbo', count: 1 }), say('Another one 🎈'));
+    await chat('20 Dec');
+    expect(toolResult(llm.requests[4].body, 'send_photos').sent).toHaveLength(1);
+    expect(toolResult(llm.requests[4].body, 'send_photos')).not.toHaveProperty('ask_date');
+  });
+});
+
+describe('closing lost enquiries', () => {
+  const lostLead = () => one(
+    `SELECT l.status, l.lost_reason FROM leads l JOIN conversations cv ON cv.id = l.conversation_id
+      WHERE cv.is_sandbox AND l.deleted_at IS NULL ORDER BY l.updated_at DESC LIMIT 1`);
+  const todayIST = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+
+  test('"booked somewhere else" marks the lead lost and cancels pending follow-ups', async () => {
+    llm.script(call('update_lead', { occasion: 'birthday' }), call('schedule_followup', { send_at: new Date(Date.now() + 86_400_000).toISOString(), message: 'Hi again 🎈' }), say('Sure, take your time!'));
+    await chat('birthday, will check and tell');
+    // a follow-up the customer's next message would not cancel (like an automation's quote reminder)
+    await pool.query(`UPDATE followups f SET cancel_on_reply = false FROM conversations cv WHERE cv.id = f.conversation_id AND cv.is_sandbox`);
+    llm.script(call('mark_lead_lost', { reason: 'booked_elsewhere', details: 'booked with a friend' }), say('No problem, thank you! Message us any time 🎈'));
+    const s = await chat('we already booked with someone else');
+    expect(s.result.outcome).toBe('replied');
+    expect(await lostLead()).toEqual({ status: 'lost', lost_reason: 'Booked elsewhere: booked with a friend' });
+    expect(s.lead).toEqual(expect.objectContaining({ missing: expect.arrayContaining(['event_date']) }));   // no open lead now
+    const { rows } = await pool.query(
+      `SELECT f.status, f.cancel_reason FROM followups f JOIN conversations cv ON cv.id = f.conversation_id WHERE cv.is_sandbox`);
+    expect(rows).toEqual([{ status: 'cancelled', cancel_reason: 'lead lost' }]);
+  });
+
+  test('"not interested" before anything was saved still counts as a lost lead', async () => {
+    llm.script(call('mark_lead_lost', { reason: 'not_interested' }), say('Okay, thank you! 😊'));
+    await chat('not interested');
+    expect(await lostLead()).toEqual({ status: 'lost', lost_reason: 'Not interested' });
+  });
+
+  test('an unknown reason is refused', async () => {
+    llm.script(call('mark_lead_lost', { reason: 'too_expensive' }), say('ok'));
+    await chat('too costly');
+    expect(toolResult(llm.requests[1].body, 'mark_lead_lost').error).toMatch(/reason/);
+  });
+
+  test('a same-day event closes the lead; a past date is sent back to be checked', async () => {
+    llm.script(call('update_lead', { occasion: 'birthday', event_date: todayIST() }), say('Sorry, we need the order a day before 🙏'));
+    await chat('birthday today evening');
+    expect(toolResult(llm.requests[1].body, 'update_lead').lead_closed).toMatch(/today/);
+    expect(await lostLead()).toEqual({ status: 'lost', lost_reason: 'Event is today (same day)' });
+
+    await owner.post('/api/agent/sandbox/reset', {});
+    llm.reset();
+    llm.script(call('update_lead', { occasion: 'birthday', event_date: '2020-01-05' }), say('Which year? 📅'));
+    const s = await chat('5th Jan');
+    expect(toolResult(llm.requests[1].body, 'update_lead').error).toMatch(/in the past/);
+    expect(s.lead).toMatchObject({ status: 'qualifying', event_date: null, occasion_name: 'Birthday' });
+  });
+
+  test('open leads whose event day has come are closed by the clock; booked ones are not', async () => {
+    const { closeDueLeads } = require('../src/agent/leads');
+    llm.script(call('update_lead', { event_date: '2026-12-20' }), say('Noted!'));
+    await chat('20 Dec');
+    expect(await closeDueLeads({ tenantId, today: '2026-12-19' })).toBe(0);
+    expect(await closeDueLeads({ tenantId, today: '2026-12-20' })).toBeGreaterThanOrEqual(1);
+    expect(await lostLead()).toEqual({ status: 'lost', lost_reason: 'Event day reached without booking' });
+    const won = await one(`SELECT count(*)::int AS n FROM leads WHERE tenant_id = $1 AND status = 'won' AND lost_reason IS NOT NULL`, [tenantId]);
+    expect(won.n).toBe(0);
   });
 });
 

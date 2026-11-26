@@ -87,10 +87,10 @@ describe('AI tools', () => {
   let owner;
   beforeAll(async () => { owner = await signedIn('owner'); });
 
-  test('lists the 9 tools with their editable fields', async () => {
+  test('lists the 10 tools with their editable fields', async () => {
     const res = await owner.get('/api/agent/tools');
     expect(res.status).toBe(200);
-    expect(res.body.tools).toHaveLength(9);
+    expect(res.body.tools).toHaveLength(10);
     expect(res.body.tools[0]).toMatchObject({ name: 'get_pricing', is_required: true, is_customised: false });
   });
 

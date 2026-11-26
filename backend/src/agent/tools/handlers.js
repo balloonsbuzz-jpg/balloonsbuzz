@@ -242,7 +242,7 @@ async function createBooking(a, ctx) {
   try {
     const r = await bookings.createFromQuote({
       tenantId: ctx.tenantId, quoteId: q.id, eventDate, eventTime: a.event_time || lead?.event_time || null, venueAddress: venue,
-      guestCount: a.guest_count || lead?.guest_count || null, specialRequests: a.special_requests || null, createdBy: { type: 'bot' },
+      guestCount: lead?.guest_count || null, specialRequests: a.special_requests || null, createdBy: { type: 'bot' },
     });
     const b = r.booking;
     const travelPending = Number(b.distance_charge) === 0 && lead?.distance_km == null;
@@ -296,8 +296,43 @@ async function requestLocation(a, ctx) {
 }
 
 async function updateLead(a, ctx) {
+  const today = leads.todayIST();
+  let pastDate = null;
+  if (a.event_date && a.event_date < today) { pastDate = a.event_date; a = { ...a }; delete a.event_date; }
   const l = await leads.update(ctx.tenantId, ctx.conversationId, a);
-  return { saved: Object.keys(a), still_missing: leads.missingFields(l) };
+  if (a.event_date === today) {
+    await leads.markLost(ctx.tenantId, ctx.conversationId, 'Event is today (same day)');
+    return {
+      saved: Object.keys(a),
+      lead_closed: 'The event is today: we do not take same-day orders here. Say sorry kindly, that we need the order at least a day before, and invite them for their next celebration. Do not send photos or prices. Only if they insist, call handover_to_human.',
+    };
+  }
+  return {
+    saved: Object.keys(a),
+    ...(pastDate ? { error: `${pastDate} is in the past (today is ${today}). Check the year, or ask the customer for the date again.` } : {}),
+    still_missing: leads.missingFields(l),
+  };
+}
+
+const LOST_LABEL = { booked_elsewhere: 'Booked elsewhere', not_interested: 'Not interested' };
+
+async function markLeadLost(a, ctx) {
+  await leads.markLost(ctx.tenantId, ctx.conversationId, `${LOST_LABEL[a.reason]}${a.details ? `: ${a.details}` : ''}`);
+  return {
+    closed: true,
+    instruction: 'Reply once, warmly and briefly: thank them, no pressure, no discount offers, and say they can message any time for their next celebration. Do not schedule a follow-up.',
+  };
+}
+
+// The date is asked first. Photos and prices still work (never block a customer), but remind the model.
+const ASK_DATE = 'The event date is not known yet: ask for it in this reply (the date comes first).';
+function dateFirst(fn) {
+  return async (a, ctx) => {
+    const result = await fn(a, ctx);
+    if (!result || result.error) return result;
+    const lead = await leads.get(ctx.conversationId);
+    return lead?.event_date ? result : { ...result, ask_date: ASK_DATE };
+  };
 }
 
 // ── follow-ups ──────────────────────────────────────────────────
@@ -331,14 +366,15 @@ async function scheduleFollowup(a, ctx) {
 }
 
 const HANDLERS = {
-  get_pricing: getPricing,
-  send_photos: sendPhotos,
+  get_pricing: dateFirst(getPricing),
+  send_photos: dateFirst(sendPhotos),
   calculate_distance_charge: calculateDistance,
   check_negotiation_limit: checkNegotiation,
   create_booking: createBooking,
   handover_to_human: handover,
   request_location: requestLocation,
   update_lead: updateLead,
+  mark_lead_lost: markLeadLost,
   schedule_followup: scheduleFollowup,
 };
 

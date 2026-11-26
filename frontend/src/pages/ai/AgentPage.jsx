@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowCounterClockwise, Key, Robot, ChatCircleDots, Warning, CheckCircle } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/layout/AppLayout';
@@ -33,6 +34,8 @@ const PROVIDERS = [
 ];
 const MODEL_SUGGESTIONS = { deepseek: ['deepseek-flash', 'deepseek-v4-pro'] };
 
+// Until a prompt is saved the bot uses the built-in one (prompts/balloonsbuzz-agent.md).
+const isBuiltIn = (p) => !p || p.startsWith('PLACEHOLDER');
 const pick = (cfg) => Object.fromEntries(EDITABLE.map((k) => [k, cfg[k]]));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -46,6 +49,12 @@ export default function AgentPage() {
   const [tab, setTab] = useState('prompt');
 
   useEffect(() => { if (config) setDraft(pick(config)); }, [config]);
+  const builtIn = useQuery({
+    queryKey: ['agent-recommended-prompt'],
+    queryFn: async () => (await api.get('/agent/recommended-prompt')).data.prompt,
+    enabled: !!config && isBuiltIn(config.system_prompt),
+    staleTime: Infinity,
+  });
 
   const dirtyKeys = useMemo(
     () => (config && draft ? EDITABLE.filter((k) => !same(draft[k], config[k])) : []),
@@ -84,10 +93,9 @@ export default function AgentPage() {
         )}
       />
 
-      {!config.system_prompt || config.system_prompt.startsWith('PLACEHOLDER') ? (
+      {isBuiltIn(config.system_prompt) ? (
         <Notice tone="warning">
-          No prompt has been saved yet, so the bot uses the recommended BalloonsBuzz prompt.
-          {canWrite && <> <button type="button" className="font-bold underline" onClick={loadRecommended}>Load it into the editor</button> to read or change it.</>}
+          The bot uses the built-in BalloonsBuzz prompt shown below. {canWrite && 'Change it and press Save to use your own version.'}
         </Notice>
       ) : null}
       {config.api_key_source === 'none' && (
@@ -102,7 +110,7 @@ export default function AgentPage() {
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prompt"><PromptTab draft={draft} set={set} canWrite={canWrite} onLoadRecommended={loadRecommended} /></TabsContent>
+        <TabsContent value="prompt"><PromptTab draft={draft} set={set} canWrite={canWrite} onLoadRecommended={loadRecommended} builtIn={builtIn} /></TabsContent>
         <TabsContent value="model"><ModelTab draft={draft} set={set} config={config} canWrite={canWrite} /></TabsContent>
         <TabsContent value="behaviour"><BehaviourTab draft={draft} set={set} canWrite={canWrite} /></TabsContent>
         <TabsContent value="history"><HistoryTab config={config} canWrite={canWrite} dirty={dirtyKeys.length > 0} /></TabsContent>
@@ -134,8 +142,12 @@ function Notice({ tone = 'info', children }) {
   );
 }
 
-function PromptTab({ draft, set, canWrite, onLoadRecommended }) {
-  const chars = draft.system_prompt?.length || 0;
+function PromptTab({ draft, set, canWrite, onLoadRecommended, builtIn }) {
+  // Show the prompt the bot really uses; typing turns it into a saved prompt.
+  const value = isBuiltIn(draft.system_prompt)
+    ? (builtIn.data ?? (builtIn.isError ? 'Could not load the built-in prompt.' : 'Loading the prompt the bot uses…'))
+    : draft.system_prompt;
+  const chars = value.length;
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
       <Card>
@@ -146,8 +158,8 @@ function PromptTab({ draft, set, canWrite, onLoadRecommended }) {
         <CardContent>
           <Textarea
             aria-label="System prompt"
-            value={draft.system_prompt}
-            readOnly={!canWrite}
+            value={value}
+            readOnly={!canWrite || (isBuiltIn(draft.system_prompt) && !builtIn.data)}
             onChange={(e) => set('system_prompt')(e.target.value)}
             className="min-h-[460px] font-mono text-[13px] leading-relaxed"
             spellCheck={false}
@@ -163,7 +175,7 @@ function PromptTab({ draft, set, canWrite, onLoadRecommended }) {
           <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ChatCircleDots size={18} /> Writing tips</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>Keep replies short and sweet. The bot also splits anything longer than the max message length.</p>
-            <p>Tell it to collect occasion, theme, date, venue, guests and budget.</p>
+            <p>Tell it to ask the event date first, then occasion, theme, venue and budget.</p>
             <p>Never put prices here. The bot gets them from <b>Get pricing</b> and the gallery photos.</p>
             <p>Every save is kept under <b>History</b>, so you can undo any change.</p>
           </CardContent>
