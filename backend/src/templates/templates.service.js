@@ -45,8 +45,12 @@ const RECOMMENDED = [
 
 async function accountFor(tenantId) {
   const { rows: [a] } = await query(`SELECT id FROM whatsapp_accounts WHERE tenant_id = $1 AND is_primary`, [tenantId]);
-  if (!a) throw conflict('Connect the WhatsApp number in Settings first.');
-  return getForSending(a.id);
+  const acc = a && await getForSending(a.id);
+  // Templates live in the WhatsApp Business Account: without a connected number there is nothing to call.
+  if (!acc || acc.status === 'disconnected' || !acc.token || !acc.waba_id) {
+    throw conflict('Connect your WhatsApp number first (Connect number page), then try again.');
+  }
+  return acc;
 }
 
 async function list(tenantId) {

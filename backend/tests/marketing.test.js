@@ -92,6 +92,20 @@ describe('templates', () => {
     expect(body).toMatchObject({ name: 'bb_event_reminder', category: 'UTILITY', language: 'en' });
     expect(body.components[0].example.body_text[0]).toHaveLength(5);
   });
+
+  test('without a connected number the page is told to connect it (not a server error)', async () => {
+    const { status } = await one(`SELECT status FROM whatsapp_accounts WHERE is_primary`);
+    await pool.query(`UPDATE whatsapp_accounts SET status = 'disconnected' WHERE is_primary`);
+    try {
+      for (const r of [await owner.post('/api/templates/recommended/bb_review_request', {}), await owner.post('/api/templates/sync', {})]) {
+        expect(r.status).toBe(409);
+        expect(r.body.error).toMatch(/Connect your WhatsApp number first/);
+      }
+      expect(graph.requests).toHaveLength(0);
+    } finally {
+      await pool.query(`UPDATE whatsapp_accounts SET status = $1 WHERE is_primary`, [status]);
+    }
+  });
 });
 
 describe('tags and opt-out', () => {
